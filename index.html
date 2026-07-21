@@ -1,0 +1,2873 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel Shield OS | Enterprise Dashboard</title>
+    <script src="https://cdn.tailwindcss.com">
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');
+
+        :root {
+            --sidebar-width: 280px;
+            --header-height: 64px;
+            --transition-speed: 0.3s;
+            --bg: #0B1220;
+            --card: #111827;
+            --primary: #06B6D4;
+            --success: #22C55E;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --text: #E5E7EB;
+            --text-secondary: #9CA3AF;
+            --border: rgba(6, 182, 212, 0.15);
+            --glass: rgba(17, 24, 39, 0.75);
+            --glow-primary: 0 0 20px rgba(6, 182, 212, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(51, 65, 85, 0.5);
+        }
+
+        .neon-text-cyan {
+            text-shadow: 0 0 10px rgba(6, 182, 212, 0.8);
+            color: #22d3ee;
+        }
+        .neon-text-red {
+            text-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
+            color: #f87171;
+        }
+        .neon-border:hover {
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.5);
+            border-color: #06b6d4;
+            transition: 0.3s;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        /* ============ OVERLAY SIDEBAR (NEW) ============ */
+        #sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 90;
+            cursor: pointer;
+            transition: opacity 0.35s ease;
+            opacity: 0;
+        }
+        #sidebar-overlay.show {
+            display: block;
+            opacity: 1;
+            animation: fadeBackdrop 0.3s ease;
+        }
+        @keyframes fadeBackdrop {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        #sidebar {
+            position: fixed;
+            top: 0;
+            right: -300px;
+            /* مخفي افتراضيًا */
+            width: var(--sidebar-width);
+            min-width: var(--sidebar-width);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+            transition: right 0.35s cubic-bezier(0.22, 0.61, 0.36, 1);
+            box-shadow: -4px 0 30px rgba(0, 0, 0, 0.8);
+            border-left: 2px solid rgba(6, 182, 212, 0.3);
+            overflow-y: auto;
+        }
+        #sidebar.sidebar-open {
+            right: 0;
+        }
+
+        #hamburger-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: none;
+            color: #cbd5e1;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: all 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #hamburger-btn:hover {
+            background: rgba(51, 65, 85, 0.6);
+            color: #22d3ee;
+        }
+        #hamburger-btn:active {
+            transform: scale(0.92);
+        }
+
+        /* المحتوى الرئيسي - ثابت لا يتحرك */
+        #main-content {
+            width: 100%;
+            flex: 1;
+        }
+
+        /* إزالة أنماط view-mode القديمة المرتبطة بإزاحة المحتوى */
+        body.view-desktop #sidebar {
+            position: fixed;
+            right: -300px;
+        }
+        body.view-desktop #sidebar.sidebar-open {
+            right: 0;
+        }
+        body.view-mobile #sidebar {
+            position: fixed;
+            right: -300px;
+            width: var(--sidebar-width);
+            min-width: var(--sidebar-width);
+        }
+        body.view-mobile #sidebar.sidebar-open {
+            right: 0;
+        }
+
+        body.view-mobile .dashboard-grid {
+            grid-template-columns: 1fr !important;
+            gap: 14px !important;
+        }
+        body.view-mobile .dashboard-grid>* {
+            min-width: 0;
+        }
+
+        body.view-mobile .chart-container {
+            height: 260px !important;
+            min-height: 220px;
+        }
+
+        body.view-mobile .table-responsive-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 12px;
+        }
+        body.view-mobile .table-responsive-wrapper table {
+            min-width: 650px;
+            width: max-content;
+        }
+
+        body.view-mobile header {
+            padding-left: 10px !important;
+            padding-right: 10px !important;
+            gap: 8px;
+            flex-wrap: wrap;
+            height: auto !important;
+            min-height: 56px;
+            padding-top: 8px;
+            padding-bottom: 8px;
+        }
+        body.view-mobile header .header-info {
+            font-size: 0.8rem;
+        }
+
+        body.view-mobile h2 {
+            font-size: 1.3rem !important;
+        }
+        body.view-mobile h3 {
+            font-size: 0.95rem !important;
+        }
+        body.view-mobile .stat-number {
+            font-size: 1.6rem !important;
+        }
+        body.view-mobile .card-padding {
+            padding: 14px !important;
+        }
+
+        body.view-mobile #main-view-container {
+            padding: 12px !important;
+        }
+
+        body.view-mobile .nav-item {
+            padding-top: 14px !important;
+            padding-bottom: 14px !important;
+            font-size: 1rem !important;
+        }
+
+        body.view-mobile button {
+            min-height: 40px;
+        }
+        body.view-mobile .scan-btn {
+            font-size: 0.8rem !important;
+            padding: 10px 14px !important;
+        }
+
+        body.view-mobile #terminal-output {
+            font-size: 0.7rem !important;
+        }
+
+        body.view-mobile .fw-form-row {
+            flex-direction: column !important;
+            gap: 10px !important;
+        }
+
+        body.view-mobile .desktop-only-icon {
+            display: none;
+        }
+
+        .view-toggle-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            border-radius: 24px;
+            border: 1px solid rgba(51, 65, 85, 0.7);
+            background: rgba(30, 41, 59, 0.6);
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.25s;
+            white-space: nowrap;
+            -webkit-tap-highlight-color: transparent;
+            font-family: 'Tajawal', sans-serif;
+            user-select: none;
+        }
+        .view-toggle-btn i {
+            font-size: 1rem;
+        }
+        .view-toggle-btn.active-view {
+            background: #06b6d4;
+            color: #fff;
+            border-color: #06b6d4;
+            box-shadow: 0 0 14px rgba(6, 182, 212, 0.55);
+            font-weight: 700;
+        }
+        .view-toggle-btn:not(.active-view):hover {
+            border-color: #06b6d4;
+            color: #22d3ee;
+            background: rgba(30, 41, 59, 0.9);
+        }
+        .view-toggle-btn:active {
+            transform: scale(0.95);
+        }
+
+        #view-toggle-container {
+            display: flex;
+            gap: 4px;
+            background: rgba(15, 23, 42, 0.7);
+            border-radius: 26px;
+            padding: 3px;
+            border: 1px solid rgba(51, 65, 85, 0.5);
+        }
+
+        .nav-item {
+            cursor: pointer;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s ease;
+            border-radius: 0 8px 8px 0;
+            margin-right: 4px;
+        }
+        .nav-item.active {
+            background: #1e293b;
+            border-right: 4px solid #06b6d4;
+            color: #22d3ee;
+        }
+        .nav-item:hover {
+            background: rgba(6, 182, 212, 0.08);
+            color: #22d3ee;
+            text-shadow: 0 0 8px rgba(6, 182, 212, 0.4);
+        }
+        .nav-item.active {
+            background: rgba(6, 182, 212, 0.12);
+            border-right: 4px solid #06b6d4;
+            color: #22d3ee;
+            box-shadow: 0 0 18px rgba(6, 182, 212, 0.2);
+        }
+
+        .fade-in {
+            animation: fadeIn 0.4s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        @keyframes pulse-glow {
+            0%,
+            100% {
+                box-shadow: 0 0 8px rgba(6, 182, 212, 0.5);
+            }
+            50% {
+                box-shadow: 0 0 20px rgba(6, 182, 212, 0.9);
+            }
+        }
+
+        .log-level {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+        .log-level.info {
+            background: rgba(6, 182, 212, 0.25);
+            color: #22d3ee;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+        .log-level.warning {
+            background: rgba(234, 179, 8, 0.25);
+            color: #fbbf24;
+            border: 1px solid rgba(234, 179, 8, 0.3);
+        }
+        .log-level.error {
+            background: rgba(239, 68, 68, 0.25);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        .log-level.critical {
+            background: rgba(220, 38, 38, 0.4);
+            color: #fca5a5;
+            border: 1px solid rgba(220, 38, 38, 0.5);
+            animation: pulse-glow-log 1.5s infinite;
+        }
+        @keyframes pulse-glow-log {
+            0%,
+            100% {
+                box-shadow: 0 0 4px rgba(220, 38, 38, 0.2);
+            }
+            50% {
+                box-shadow: 0 0 12px rgba(220, 38, 38, 0.5);
+            }
+        }
+
+        .settings-checkbox {
+            accent-color: #06b6d4;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .settings-checkbox:checked {
+            accent-color: #06b6d4;
+        }
+
+        .report-status-badge {
+            display: inline-block;
+            padding: 2px 12px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .report-status-badge.generated {
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+        .report-status-badge.pending {
+            background: rgba(234, 179, 8, 0.2);
+            color: #fbbf24;
+            border: 1px solid rgba(234, 179, 8, 0.3);
+        }
+
+        .filter-select {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(51, 65, 85, 0.6);
+            color: #e2e8f0;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.2s;
+            font-family: 'Tajawal', sans-serif;
+        }
+        .filter-select:focus {
+            border-color: #06b6d4;
+        }
+        .filter-select option {
+            background: #1e293b;
+            color: #e2e8f0;
+        }
+
+        .search-input {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(51, 65, 85, 0.6);
+            color: #e2e8f0;
+            padding: 6px 14px 6px 36px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            outline: none;
+            transition: border-color 0.2s;
+            width: 100%;
+            min-width: 180px;
+            font-family: 'Tajawal', sans-serif;
+        }
+        .search-input:focus {
+            border-color: #06b6d4;
+        }
+        .search-input::placeholder {
+            color: #64748b;
+        }
+        .search-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+            max-width: 280px;
+        }
+        .search-wrapper i {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748b;
+            pointer-events: none;
+        }
+
+        .export-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 16px;
+            border-radius: 8px;
+            border: 1px solid rgba(51, 65, 85, 0.6);
+            background: rgba(30, 41, 59, 0.6);
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.25s;
+            font-family: 'Tajawal', sans-serif;
+            white-space: nowrap;
+        }
+        .export-btn:hover {
+            border-color: #06b6d4;
+            color: #22d3ee;
+            background: rgba(30, 41, 59, 0.9);
+        }
+        .export-btn i {
+            font-size: 0.9rem;
+        }
+
+        .report-gen-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 20px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.25s;
+            font-family: 'Tajawal', sans-serif;
+            white-space: nowrap;
+        }
+        .report-gen-btn.pdf {
+            background: #dc2626;
+            color: #fff;
+        }
+        .report-gen-btn.pdf:hover {
+            background: #b91c1c;
+            box-shadow: 0 0 20px rgba(220, 38, 38, 0.4);
+        }
+        .report-gen-btn.excel {
+            background: #16a34a;
+            color: #fff;
+        }
+        .report-gen-btn.excel:hover {
+            background: #15803d;
+            box-shadow: 0 0 20px rgba(22, 163, 74, 0.4);
+        }
+        .report-gen-btn.csv {
+            background: #2563eb;
+            color: #fff;
+        }
+        .report-gen-btn.csv:hover {
+            background: #1d4ed8;
+            box-shadow: 0 0 20px rgba(37, 99, 235, 0.4);
+        }
+
+        .settings-group {
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 12px;
+            padding: 16px 20px;
+            border: 1px solid rgba(51, 65, 85, 0.4);
+        }
+        .settings-group label {
+            font-weight: 500;
+            color: #cbd5e1;
+            font-size: 0.9rem;
+        }
+        .settings-group .helper-text {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 2px;
+        }
+
+        body.view-mobile .search-wrapper {
+            max-width: 100%;
+        }
+        body.view-mobile .report-gen-btn {
+            padding: 6px 14px;
+            font-size: 0.8rem;
+        }
+        body.view-mobile .settings-group {
+            padding: 12px 14px;
+        }
+        body.view-mobile .logs-controls {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 10px !important;
+        }
+        body.view-mobile .logs-controls .flex-wrap {
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        body.view-mobile .reports-actions {
+            flex-direction: column !important;
+            align-items: stretch !important;
+        }
+        body.view-mobile .reports-actions .flex-wrap {
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            left: 24px;
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 380px;
+            width: 100%;
+        }
+        .toast {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(6, 182, 212, 0.4);
+            border-right: 4px solid #06b6d4;
+            padding: 12px 18px;
+            border-radius: 10px;
+            color: #e2e8f0;
+            font-size: 0.9rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            animation: slideInToast 0.4s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .toast i {
+            color: #22d3ee;
+            font-size: 1.2rem;
+        }
+        .toast.error i {
+            color: #f87171;
+        }
+        .toast.success i {
+            color: #4ade80;
+        }
+        @keyframes slideInToast {
+            from {
+                opacity: 0;
+                transform: translateX(40px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        .toast .toast-close {
+            margin-right: auto;
+            cursor: pointer;
+            color: #64748b;
+            font-size: 0.9rem;
+            background: none;
+            border: none;
+            padding: 0 4px;
+        }
+        .toast .toast-close:hover {
+            color: #e2e8f0;
+        }
+
+        /* ============ LOGIN SCREEN STYLES ============ */
+        #loginScreen {
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.6s, visibility 0.6s;
+        }
+        #loginScreen.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        #loginScreen .login-bg-animation {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            z-index: 0;
+        }
+        #loginScreen .login-bg-animation .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            animation: floatOrb 12s ease-in-out infinite;
+            opacity: 0.5;
+        }
+        @keyframes floatOrb {
+            0%,
+            100% {
+                transform: translate(0, 0) scale(1);
+            }
+            25% {
+                transform: translate(100px, -60px) scale(1.3);
+            }
+            50% {
+                transform: translate(-40px, 80px) scale(0.8);
+            }
+            75% {
+                transform: translate(-100px, -30px) scale(1.2);
+            }
+        }
+        #loginScreen .login-card {
+            position: relative;
+            z-index: 1;
+            background: var(--glass);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 48px 40px;
+            width: 440px;
+            max-width: 95vw;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), var(--glow-primary);
+            text-align: center;
+        }
+        #loginScreen .login-logo {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            color: var(--primary);
+            text-shadow: 0 0 30px var(--primary);
+            margin-bottom: 8px;
+        }
+        #loginScreen .login-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-bottom: 32px;
+            letter-spacing: 0.05em;
+        }
+        #loginScreen .input-group {
+            margin-bottom: 20px;
+            text-align: right;
+        }
+        #loginScreen .input-group label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+        #loginScreen .input-group input {
+            width: 100%;
+            padding: 14px 16px;
+            background: rgba(11, 18, 32, 0.7);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            font-size: 1rem;
+            outline: none;
+            transition: 0.3s;
+            font-family: 'Tajawal', sans-serif;
+        }
+        #loginScreen .input-group input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.15);
+        }
+        #loginScreen .remember-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 24px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            justify-content: flex-start;
+        }
+        #loginScreen .remember-row input[type="checkbox"] {
+            accent-color: var(--primary);
+            width: 16px;
+            height: 16px;
+        }
+        #loginScreen .btn-login {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: #000;
+            font-weight: 700;
+            font-size: 1rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            letter-spacing: 0.05em;
+            transition: 0.3s;
+            box-shadow: 0 0 25px rgba(6, 182, 212, 0.4);
+            font-family: 'Tajawal', sans-serif;
+        }
+        #loginScreen .btn-login:hover {
+            box-shadow: 0 0 45px rgba(6, 182, 212, 0.7);
+            transform: translateY(-2px);
+        }
+        #loginScreen .system-status {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 28px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        #loginScreen .system-status div {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        #loginScreen .system-status .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 8px var(--success);
+            animation: dotPulse 2s infinite;
+        }
+        @keyframes dotPulse {
+            0%,
+            100% {
+                box-shadow: 0 0 8px var(--success);
+            }
+            50% {
+                box-shadow: 0 0 16px var(--success), 0 0 24px var(--success);
+            }
+        }
+
+        /* ============ ENHANCED SIDEBAR STYLES ============ */
+        #sidebar .sidebar-logo {
+            font-size: 1.4rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            color: var(--primary);
+            text-shadow: 0 0 15px var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ============ NEW: IDS/IPS TOGGLE SWITCH ============ */
+        .mode-toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(15, 23, 42, 0.6);
+            padding: 14px 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(51, 65, 85, 0.5);
+        }
+        .mode-toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 56px;
+            height: 28px;
+        }
+        .mode-toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .mode-toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #334155;
+            transition: 0.3s;
+            border-radius: 28px;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+        .mode-toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            right: 4px;
+            bottom: 3px;
+            background-color: #cbd5e1;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+        input:checked+.mode-toggle-slider {
+            background-color: #06b6d4;
+            box-shadow: 0 0 12px rgba(6, 182, 212, 0.5);
+        }
+        input:checked+.mode-toggle-slider:before {
+            transform: translateX(26px);
+            background-color: #fff;
+        }
+        .mode-label {
+            font-weight: 700;
+            font-size: 1rem;
+            color: #e2e8f0;
+        }
+        .mode-label.detection {
+            color: #22d3ee;
+            text-shadow: 0 0 6px rgba(6, 182, 212, 0.5);
+        }
+        .mode-label.prevention {
+            color: #f87171;
+            text-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+        }
+
+        /* ============ NEW: USER BADGE ============ */
+        .user-role-badge {
+            display: inline-block;
+            padding: 3px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+        .user-role-badge.admin {
+            background: rgba(6, 182, 212, 0.25);
+            color: #22d3ee;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+        .user-role-badge.monitor {
+            background: rgba(34, 197, 94, 0.25);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+        .user-role-badge.operator {
+            background: rgba(245, 158, 11, 0.25);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        /* ============ SIDEBAR LANGUAGE TOGGLE BUTTON ============ */
+        #sidebar-lang-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            width: 100%;
+            padding: 10px 16px;
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(51, 65, 85, 0.5);
+            border-radius: 8px;
+            color: #cbd5e1;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.25s;
+            font-family: 'Tajawal', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        #sidebar-lang-btn:hover {
+            background: rgba(6, 182, 212, 0.15);
+            border-color: #06b6d4;
+            color: #22d3ee;
+        }
+        #sidebar-lang-btn:active {
+            transform: scale(0.96);
+        }
+        #sidebar-lang-btn i {
+            font-size: 0.9rem;
+        }
+        #lang-indicator {
+            font-weight: 700;
+            color: #22d3ee;
+        }
+    </style>
+</head>
+<body class="flex view-desktop" id="app-body">
+
+    <!-- ==================== LOGIN SCREEN ==================== -->
+    <div id="loginScreen">
+        <div class="login-bg-animation">
+            <div class="orb" style="width:300px;height:300px;background:#06B6D4;top:10%;left:5%;animation-delay:0s;"></div>
+            <div class="orb" style="width:250px;height:250px;background:#8B5CF6;top:50%;right:10%;animation-delay:-4s;">
+            </div>
+            <div class="orb" style="width:200px;height:200px;background:#22C55E;bottom:15%;left:30%;animation-delay:-7s;">
+            </div>
+        </div>
+        <div class="login-card">
+            <div class="login-logo">⚔ SENTINEL SHIELD</div>
+            <div class="login-subtitle">منصة الأمان المؤسسية | Enterprise Security Platform</div>
+            <div class="input-group">
+                <label><i class="fa-solid fa-user ml-2"></i> اسم المستخدم</label>
+                <input type="text" id="loginUser" placeholder="admin" value="admin">
+            </div>
+            <div class="input-group">
+                <label><i class="fa-solid fa-lock ml-2"></i> كلمة المرور</label>
+                <input type="password" id="loginPass" placeholder="••••••••" value="admin123">
+            </div>
+            <div class="remember-row">
+                <input type="checkbox" id="rememberMe" checked> تذكرني
+            </div>
+            <button class="btn-login" onclick="doLogin()">
+                <i class="fa-solid fa-right-to-bracket ml-2"></i> تسجيل الدخول
+            </button>
+            <div class="system-status">
+                <div><span class="dot"></span> الجدار الناري نشط</div>
+                <div><span class="dot"></span> نظام IDS يعمل</div>
+                <div><span class="dot"></span> VPN متصل</div>
+                <div><span class="dot"></span> قاعدة البيانات متصلة</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== MAIN APP CONTAINER ==================== -->
+    <div id="appContainer" style="display: none; width: 100%; height: 100vh;">
+
+        <!-- ==================== SIDEBAR OVERLAY BACKDROP ==================== -->
+        <div id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+        <!-- ==================== SIDEBAR (Overlay) ==================== -->
+        <aside id="sidebar" class="glass-panel">
+            <!-- Header -->
+            <div class="p-5 flex items-center justify-between border-b border-slate-700">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-shield-halved text-2xl neon-text-cyan"></i>
+                    <h1 class="sidebar-logo text-lg font-bold tracking-wider leading-tight">
+                        <span class="text-cyan-400">Sentinel Shield OS</span>
+                    </h1>
+                </div>
+                <button onclick="closeSidebar()" class="text-slate-400 hover:text-white transition p-1 rounded-lg hover:bg-slate-700/50 md:hidden" aria-label="إغلاق القائمة">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="flex-1 overflow-y-auto py-3">
+                <ul class="space-y-1">
+                    <li>
+                        <a onclick="switchTab('dashboard'); closeSidebar();" id="tab-dashboard" class="nav-item active flex items-center py-3 px-5 text-slate-300 transition">
+                            <i class="fa-solid fa-chart-line ml-3 text-lg w-6 text-center"></i>
+                            <span class="font-medium sidebar-tab-text" data-key="dashboard">لوحة التحكم</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a onclick="switchTab('devices'); closeSidebar();" id="tab-devices" class="nav-item flex items-center py-3 px-5 text-slate-300 transition">
+                            <i class="fa-solid fa-network-wired ml-3 text-lg w-6 text-center"></i>
+                            <span class="font-medium sidebar-tab-text" data-key="devices">الأجهزة المتصلة</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a onclick="switchTab('firewall'); closeSidebar();" id="tab-firewall" class="nav-item flex items-center py-3 px-5 text-slate-300 transition">
+                            <i class="fa-solid fa-fire-extinguisher ml-3 text-lg w-6 text-center"></i>
+                            <span class="font-medium sidebar-tab-text" data-key="firewall">الجدار الناري</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a onclick="switchTab('idsips'); closeSidebar();" id="tab-idsips" class="nav-item flex items-center py-3 px-5 text-slate-300 transition">
+                            <i class="fa-solid fa-shield-virus ml-3 text-lg w-6 text-center"></i>
+                            <span class="font-medium sidebar-tab-text" data-key="idsips">إعدادات IDS/IPS</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a onclick="switchTab('network'); closeSidebar();" id="tab-network" class="nav-item flex items-center py-3 px-5 text-slate-300 transition">
+                            <i class="fa-solid fa-globe ml-3 text-lg w-6 text-center"></i>
+                            <span class="font-medium sidebar-tab-text" data-key="network">الشبكة</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a onclick="switchTab('vpn'); closeSidebar();" id="tab-vpn" class="nav-item flex items-center py-3 px-5 text-slate-300 transition">
+                            <i class="fa-solid fa-shield ml-3 text-lg w-6 text-center"></i>
+                            <span class="font-medium sidebar-tab-text" data-key="vpn">إعدادات VPN</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a onclick="switchTab('logs'); closeSidebar();" id="tab-logs" class="nav-item flex items-center py-3 px-5 text-slate-300 transition">
+                            <i class="fa-solid fa-terminal ml-3 text-lg w-6 text-center"></i>
+                            <span class="font-medium sidebar-tab-text" data-key="logs">السجلات</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a onclick="switchTab('users'); closeSidebar();" id="tab-users" class="nav-item flex items-center py-3 px-5 text-slate-300 transition">
+                            <i class="fa-solid fa-users ml-3 text-lg w-6 text-center"></i>
+                            <span class="font-medium sidebar-tab-text" data-key="users">إدارة المستخدمين</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a onclick="switchTab('settings'); closeSidebar();" id="tab-settings" class="nav-item flex items-center py-3 px-5 text-slate-300 transition">
+                            <i class="fa-solid fa-gear ml-3 text-lg w-6 text-center"></i>
+                            <span class="font-medium sidebar-tab-text" data-key="settings">الإشعارات</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a onclick="switchTab('reports'); closeSidebar();" id="tab-reports" class="nav-item flex items-center py-3 px-5 text-slate-300 transition">
+                            <i class="fa-solid fa-file-alt ml-3 text-lg w-6 text-center"></i>
+                            <span class="font-medium sidebar-tab-text" data-key="reports">التقارير</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- Footer: Language Toggle + Status -->
+            <div class="p-4 border-t border-slate-700 space-y-3">
+                <!-- Language Toggle Button -->
+                <button id="sidebar-lang-btn" onclick="toggleSidebarLanguage()" title="تغيير لغة القائمة">
+                    <i class="fa-solid fa-language"></i>
+                    <span id="lang-indicator">English</span>
+                </button>
+                <!-- System Status -->
+                <div class="text-sm text-slate-400 text-center">
+                    <p>v2.1.0 Enterprise</p>
+                    <p class="text-xs mt-1 text-green-400"><i class="fa-solid fa-circle text-[8px] mr-1 animate-pulse"></i> النظام متصل</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ==================== MAIN CONTENT AREA ==================== -->
+        <div id="main-content" class="flex flex-col h-full overflow-hidden bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] flex-1">
+
+            <!-- ==================== HEADER ==================== -->
+            <header class="glass-panel flex items-center justify-between px-4 lg:px-8 z-10" style="min-height: 56px;">
+                <div class="flex items-center gap-3">
+                    <button id="hamburger-btn" onclick="toggleSidebar()" aria-label="القائمة" title="فتح القائمة الجانبية">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <div class="flex items-center text-slate-300 header-info gap-2">
+                        <i class="fa-solid fa-server"></i>
+                        <span class="font-medium text-sm lg:text-base" id="system-time">00:00:00</span>
+                    </div>
+                </div>
+
+                <div id="view-toggle-container" title="اختيار وضع العرض">
+                    <button class="view-toggle-btn active-view" id="btn-desktop-view" onclick="setViewMode('desktop')" aria-label="عرض الحاسوب">
+                        <i class="fa-solid fa-laptop"></i>
+                        <span class="hidden sm:inline">حاسوب</span>
+                    </button>
+                    <button class="view-toggle-btn" id="btn-mobile-view" onclick="setViewMode('mobile')" aria-label="عرض الهاتف">
+                        <i class="fa-solid fa-mobile-screen"></i>
+                        <span class="hidden sm:inline">هاتف</span>
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-3 lg:gap-4">
+                    <button class="relative p-2 text-slate-300 hover:text-cyan-400 transition" aria-label="الإشعارات" onclick="showToast('📬 ليس لديك إشعارات جديدة', 'info')">
+                        <i class="fa-regular fa-bell text-lg lg:text-xl"></i>
+                        <span class="absolute top-1 right-1 h-3 w-3 bg-red-500 rounded-full border border-slate-800"></span>
+                    </button>
+                    <div class="items-center cursor-pointer border-r border-slate-600 pr-3 lg:pr-4 hidden sm:flex gap-2">
+                        <img src="https://ui-avatars.com/api/?name=Admin&background=06b6d4&color=fff" alt="Admin" class="h-7 w-7 lg:h-8 lg:w-8 rounded-full border border-cyan-400">
+                        <span class="font-medium text-sm lg:text-base">مدير النظام</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- ==================== TAB CONTENT ==================== -->
+            <div class="flex-1 overflow-y-auto relative" id="main-view-container" style="padding: 16px;">
+
+                <!-- ========== Dashboard View ========== -->
+                <div id="view-dashboard" class="fade-in block">
+                    <h2 class="text-xl lg:text-2xl font-bold mb-4 lg:mb-6 neon-text-cyan">نظرة عامة على النظام</h2>
+                    <div class="dashboard-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6 lg:mb-8">
+                        <div class="glass-panel rounded-xl card-padding p-4 lg:p-6 neon-border">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-slate-400 text-xs lg:text-sm font-medium mb-1">استهلاك المعالج (CPU)</p>
+                                    <h3 class="stat-number text-2xl lg:text-3xl font-bold" id="cpu-stat">12%</h3>
+                                </div>
+                                <div class="h-9 w-9 lg:h-10 lg:w-10 rounded-lg bg-cyan-900/50 flex items-center justify-center text-cyan-400">
+                                    <i class="fa-solid fa-microchip text-lg lg:text-xl"></i>
+                                </div>
+                            </div>
+                            <div class="w-full bg-slate-700 h-1.5 rounded-full mt-3 lg:mt-4 overflow-hidden">
+                                <div class="bg-cyan-400 h-1.5 rounded-full transition-all duration-500" id="cpu-bar" style="width: 12%"></div>
+                            </div>
+                        </div>
+                        <div class="glass-panel rounded-xl card-padding p-4 lg:p-6 neon-border">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-slate-400 text-xs lg:text-sm font-medium mb-1">الذاكرة العشوائية (RAM)</p>
+                                    <h3 class="stat-number text-2xl lg:text-3xl font-bold" id="ram-stat">45%</h3>
+                                </div>
+                                <div class="h-9 w-9 lg:h-10 lg:w-10 rounded-lg bg-purple-900/50 flex items-center justify-center text-purple-400">
+                                    <i class="fa-solid fa-memory text-lg lg:text-xl"></i>
+                                </div>
+                            </div>
+                            <div class="w-full bg-slate-700 h-1.5 rounded-full mt-3 lg:mt-4 overflow-hidden">
+                                <div class="bg-purple-400 h-1.5 rounded-full transition-all duration-500" id="ram-bar" style="width: 45%"></div>
+                            </div>
+                        </div>
+                        <div class="glass-panel rounded-xl card-padding p-4 lg:p-6 neon-border">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-slate-400 text-xs lg:text-sm font-medium mb-1">التهديدات المصدودة</p>
+                                    <h3 class="stat-number text-2xl lg:text-3xl font-bold text-green-400" id="threats-stat">1,204</h3>
+                                </div>
+                                <div class="h-9 w-9 lg:h-10 lg:w-10 rounded-lg bg-green-900/50 flex items-center justify-center text-green-400">
+                                    <i class="fa-solid fa-shield-virus text-lg lg:text-xl"></i>
+                                </div>
+                            </div>
+                            <p class="text-xs text-green-500 mt-3 lg:mt-4"><i class="fa-solid fa-arrow-trend-up ml-1"></i> أمان النظام مستقر</p>
+                        </div>
+                        <div class="glass-panel rounded-xl card-padding p-4 lg:p-6 neon-border border-red-500/30">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-slate-400 text-xs lg:text-sm font-medium mb-1">حالة الشبكة (eth0)</p>
+                                    <h3 class="text-lg lg:text-xl font-bold neon-text-red mt-1 lg:mt-2">محاولة اختراق (Port Scan)</h3>
+                                </div>
+                                <div class="h-9 w-9 lg:h-10 lg:w-10 rounded-lg bg-red-900/50 flex items-center justify-center text-red-400 animate-pulse">
+                                    <i class="fa-solid fa-triangle-exclamation text-lg lg:text-xl"></i>
+                                </div>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-3 lg:mt-4">المصدر: 192.168.1.105</p>
+                        </div>
+                    </div>
+                    <div class="glass-panel rounded-xl p-4 lg:p-6 w-full chart-container" style="height: 300px; min-height: 220px;">
+                        <div class="flex justify-between items-center mb-3 lg:mb-4">
+                            <h3 class="font-bold text-base lg:text-lg">تحليل حركة البيانات المباشرة (Traffic Flow)</h3>
+                            <span class="text-xs bg-cyan-900/50 text-cyan-400 px-2 lg:px-3 py-1 rounded-full border border-cyan-800">مباشر <i class="fa-solid fa-circle text-[8px] mr-1 animate-pulse"></i></span>
+                        </div>
+                        <canvas id="trafficChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- ========== Devices View ========== -->
+                <div id="view-devices" class="fade-in hidden">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 lg:mb-6">
+                        <h2 class="text-xl lg:text-2xl font-bold neon-text-cyan">إدارة الأجهزة الشبكية</h2>
+                        <button onclick="scanNetwork()" class="scan-btn bg-cyan-600 hover:bg-cyan-500 text-white px-4 lg:px-6 py-2 lg:py-3 rounded-lg transition shadow-[0_0_15px_rgba(6,182,212,0.4)] flex items-center font-bold text-sm lg:text-base whitespace-nowrap">
+                            <i class="fa-solid fa-radar ml-2"></i> فحص الشبكة الآن (ARP Scan)
+                        </button>
+                    </div>
+                    <div class="glass-panel rounded-xl overflow-hidden table-responsive-wrapper">
+                        <table class="w-full text-right border-collapse" style="min-width: 650px;">
+                            <thead>
+                                <tr class="bg-slate-800/80 border-b border-slate-700 text-slate-300 text-xs lg:text-sm">
+                                    <th class="p-3 lg:p-4 font-semibold">عنوان IP</th>
+                                    <th class="p-3 lg:p-4 font-semibold">عنوان MAC</th>
+                                    <th class="p-3 lg:p-4 font-semibold">اسم الجهاز</th>
+                                    <th class="p-3 lg:p-4 font-semibold">الشركة المصنعة</th>
+                                    <th class="p-3 lg:p-4 font-semibold">الحالة</th>
+                                    <th class="p-3 lg:p-4 font-semibold">الإجراء</th>
+                                </tr>
+                            </thead>
+                            <tbody id="devices-table-body" class="divide-y divide-slate-700/50 text-sm lg:text-base">
+                                <tr><td colspan="6" class="p-6 lg:p-8 text-center text-slate-400">اضغط على "فحص الشبكة الآن" لاكتشاف الأجهزة المتصلة.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ========== Firewall View ========== -->
+                <div id="view-firewall" class="fade-in hidden">
+                    <h2 class="text-xl lg:text-2xl font-bold mb-4 lg:mb-6 neon-text-cyan">سياسات الجدار الناري (iptables Rules)</h2>
+                    <div class="glass-panel rounded-xl p-4 lg:p-6 mb-6 lg:mb-8 fw-form-row flex flex-col lg:flex-row gap-3 lg:gap-4 items-stretch lg:items-end bg-slate-800/50 border-cyan-900">
+                        <div class="flex-1">
+                            <label class="block text-sm font-medium text-slate-400 mb-2">عنوان IP المستهدف</label>
+                            <input type="text" id="fw-ip" placeholder="مثال: 192.168.1.50" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:outline-none focus:border-cyan-400 transition text-sm lg:text-base">
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-sm font-medium text-slate-400 mb-2">الإجراء (Action)</label>
+                            <select id="fw-action" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:outline-none focus:border-cyan-400 transition text-sm lg:text-base">
+                                <option value="DROP">حظر تام (DROP)</option>
+                                <option value="REJECT">رفض (REJECT)</option>
+                                <option value="ACCEPT">سماح (ACCEPT)</option>
+                            </select>
+                        </div>
+                        <button onclick="addFirewallRule()" class="bg-red-600 hover:bg-red-500 text-white px-6 lg:px-8 py-3 rounded-lg transition font-bold shadow-[0_0_15px_rgba(239,68,68,0.4)] whitespace-nowrap text-sm lg:text-base">
+                            تطبيق القاعدة
+                        </button>
+                    </div>
+                    <div class="glass-panel rounded-xl overflow-hidden table-responsive-wrapper">
+                        <table class="w-full text-right border-collapse" style="min-width: 550px;">
+                            <thead>
+                                <tr class="bg-slate-800/80 border-b border-slate-700 text-slate-300 text-xs lg:text-sm">
+                                    <th class="p-3 lg:p-4">المعرف (ID)</th>
+                                    <th class="p-3 lg:p-4">البروتوكول</th>
+                                    <th class="p-3 lg:p-4">المصدر (Source)</th>
+                                    <th class="p-3 lg:p-4">الإجراء (Target)</th>
+                                    <th class="p-3 lg:p-4">الوقت</th>
+                                </tr>
+                            </thead>
+                            <tbody id="firewall-rules-body" class="divide-y divide-slate-700/50 text-sm lg:text-base">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ========== IDS/IPS View ========== -->
+                <div id="view-idsips" class="fade-in hidden">
+                    <h2 class="text-xl lg:text-2xl font-bold mb-4 lg:mb-6 neon-text-cyan">إدارة نظام كشف ومنع التسلل (IDS/IPS)</h2>
+                    <div class="mode-toggle-container mb-6">
+                        <span class="mode-label detection" id="mode-label-detection"><i class="fa-solid fa-eye ml-1"></i> وضع الكشف (Detection)</span>
+                        <label class="mode-toggle-switch">
+                            <input type="checkbox" id="ids-mode-toggle" onchange="toggleIDSMode()">
+                            <span class="mode-toggle-slider"></span>
+                        </label>
+                        <span class="mode-label" id="mode-label-prevention"><i class="fa-solid fa-shield-halved ml-1"></i> وضع المنع (Prevention)</span>
+                    </div>
+                    <p class="text-xs text-slate-400 mb-6 -mt-3">الوضع الحالي: <strong id="ids-current-mode-text" class="text-cyan-400">Detection - كشف فقط</strong></p>
+                    <div class="settings-group mb-6">
+                        <div class="flex items-center gap-3 mb-4">
+                            <i class="fa-solid fa-database text-2xl text-purple-400"></i>
+                            <h3 class="text-lg font-bold text-purple-300">قواعد IDS/IPS</h3>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-1">ملف القواعد الأساسي</label>
+                                <input type="text" value="/etc/suricata/rules/emerging-threats.rules" readonly class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-slate-400 text-sm">
+                                <p class="helper-text">المسار الافتراضي لقواعد التهديدات الناشئة</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-1">ملف القواعد المخصصة</label>
+                                <input type="text" value="/etc/suricata/rules/custom.rules" readonly class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-slate-400 text-sm">
+                                <p class="helper-text">قواعد مخصصة لبيئة المؤسسة</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-3 mb-6">
+                        <button onclick="updateIDSRules()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-3 rounded-lg transition font-bold shadow-[0_0_20px_rgba(6,182,212,0.4)] flex items-center gap-2 text-sm lg:text-base">
+                            <i class="fa-solid fa-cloud-arrow-down"></i> تحديث القواعد (Update Rules)
+                        </button>
+                        <button onclick="reloadIDS()" class="bg-yellow-600 hover:bg-yellow-500 text-white px-6 py-3 rounded-lg transition font-bold flex items-center gap-2 text-sm lg:text-base">
+                            <i class="fa-solid fa-rotate"></i> إعادة تحميل الخدمة
+                        </button>
+                        <button onclick="showIDSStats()" class="export-btn flex items-center gap-2 text-sm lg:text-base">
+                            <i class="fa-solid fa-chart-bar"></i> عرض الإحصائيات
+                        </button>
+                    </div>
+                    <div class="glass-panel rounded-xl p-4 lg:p-6">
+                        <h3 class="font-bold text-base lg:text-lg mb-4 text-yellow-300">آخر التنبيهات</h3>
+                        <div class="table-responsive-wrapper">
+                            <table class="w-full text-right border-collapse" style="min-width: 600px;">
+                                <thead>
+                                    <tr class="bg-slate-800/80 border-b border-slate-700 text-slate-300 text-xs lg:text-sm">
+                                        <th class="p-3 lg:p-4">الوقت</th>
+                                        <th class="p-3 lg:p-4">النوع</th>
+                                        <th class="p-3 lg:p-4">المصدر</th>
+                                        <th class="p-3 lg:p-4">الرسالة</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ids-alerts-body" class="divide-y divide-slate-700/50 text-sm lg:text-base">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ========== Network Settings View ========== -->
+                <div id="view-network" class="fade-in hidden">
+                    <h2 class="text-xl lg:text-2xl font-bold mb-4 lg:mb-6 neon-text-cyan">إعدادات الشبكة</h2>
+                    <div class="settings-group mb-6">
+                        <div class="flex items-center gap-3 mb-4">
+                            <i class="fa-solid fa-cloud text-2xl text-cyan-400"></i>
+                            <h3 class="text-lg font-bold text-cyan-300">إعدادات WAN</h3>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-1">نوع الاتصال</label>
+                                <select id="wan-type" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-cyan-400 transition text-sm">
+                                    <option value="dhcp" selected>DHCP (تلقائي)</option>
+                                    <option value="static">Static IP (ثابت)</option>
+                                    <option value="pppoe">PPPoE</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-1">عنوان IP</label>
+                                <input type="text" id="wan-ip" value="203.0.113.10" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-cyan-400 transition text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-1">قناع الشبكة (Subnet Mask)</label>
+                                <input type="text" id="wan-mask" value="255.255.255.0" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-cyan-400 transition text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-1">البوابة (Gateway)</label>
+                                <input type="text" id="wan-gateway" value="203.0.113.1" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-cyan-400 transition text-sm">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="settings-group mb-6">
+                        <div class="flex items-center gap-3 mb-4">
+                            <i class="fa-solid fa-network-wired text-2xl text-green-400"></i>
+                            <h3 class="text-lg font-bold text-green-300">إعدادات LAN</h3>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-1">عنوان IP للراوتر</label>
+                                <input type="text" id="lan-ip" value="192.168.1.1" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-cyan-400 transition text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-1">قناع الشبكة (Subnet Mask)</label>
+                                <input type="text" id="lan-mask" value="255.255.255.0" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-cyan-400 transition text-sm">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="settings-group mb-6">
+                        <div class="flex items-center gap-3 mb-4">
+                            <i class="fa-solid fa-server text-2xl text-yellow-400"></i>
+                            <h3 class="text-lg font-bold text-yellow-300">إعدادات DHCP</h3>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-1">بداية نطاق DHCP</label>
+                                <input type="text" id="dhcp-start" value="192.168.1.100" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-cyan-400 transition text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-1">نهاية نطاق DHCP</label>
+                                <input type="text" id="dhcp-end" value="192.168.1.200" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-cyan-400 transition text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-1">مدة الإيجار (ثانية)</label>
+                                <input type="number" id="dhcp-lease" value="86400" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-cyan-400 transition text-sm">
+                            </div>
+                            <div class="flex items-end">
+                                <label class="flex items-center gap-3 text-slate-200 cursor-pointer hover:text-cyan-300 transition p-2 rounded-lg bg-slate-800/30 w-full">
+                                    <input type="checkbox" id="dhcp-enabled" class="settings-checkbox" checked>
+                                    <span>تفعيل خادم DHCP</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex justify-end">
+                        <button onclick="saveNetworkSettings()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-8 py-3 rounded-lg transition font-bold shadow-[0_0_20px_rgba(6,182,212,0.4)] flex items-center gap-2">
+                            <i class="fa-solid fa-floppy-disk"></i> حفظ إعدادات الشبكة
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ========== VPN Settings View ========== -->
+                <div id="view-vpn" class="fade-in hidden">
+                    <h2 class="text-xl lg:text-2xl font-bold mb-4 lg:mb-6 neon-text-cyan">إعدادات VPN</h2>
+                    <div class="glass-panel rounded-xl p-4 lg:p-6 mb-6 flex items-center gap-4 border-green-500/30">
+                        <div class="h-12 w-12 rounded-full bg-green-900/50 flex items-center justify-center">
+                            <i class="fa-solid fa-lock text-2xl text-green-400"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-green-400">حالة الاتصال: متصل</h3>
+                            <p class="text-sm text-slate-400 mt-1">خادم VPN نشط ويعمل بكفاءة</p>
+                        </div>
+                    </div>
+                    <div class="settings-group mb-6">
+                        <div class="flex items-center gap-3 mb-4">
+                            <i class="fa-solid fa-gear text-2xl text-cyan-400"></i>
+                            <h3 class="text-lg font-bold text-cyan-300">إعدادات الخادم</h3>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-1">عنوان خادم VPN</label>
+                                <input type="text" id="vpn-server" value="vpn.sentinelshield.local" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-cyan-400 transition text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-1">المنفذ</label>
+                                <input type="number" id="vpn-port" value="1194" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-cyan-400 transition text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-1">البروتوكول</label>
+                                <select id="vpn-protocol" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-cyan-400 transition text-sm">
+                                    <option value="udp" selected>UDP</option>
+                                    <option value="tcp">TCP</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-1">نوع المصادقة</label>
+                                <select id="vpn-auth" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-cyan-400 transition text-sm">
+                                    <option value="cert" selected>شهادة (Certificate)</option>
+                                    <option value="psk">مفتاح مشترك (Pre-Shared Key)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="glass-panel rounded-xl overflow-hidden table-responsive-wrapper">
+                        <h3 class="font-bold text-base lg:text-lg p-4 text-green-300">العملاء المتصلون</h3>
+                        <table class="w-full text-right border-collapse" style="min-width: 550px;">
+                            <thead>
+                                <tr class="bg-slate-800/80 border-b border-slate-700 text-slate-300 text-xs lg:text-sm">
+                                    <th class="p-3 lg:p-4 font-semibold">المستخدم</th>
+                                    <th class="p-3 lg:p-4 font-semibold">عنوان IP</th>
+                                    <th class="p-3 lg:p-4 font-semibold">متصل منذ</th>
+                                    <th class="p-3 lg:p-4 font-semibold">البيانات</th>
+                                    <th class="p-3 lg:p-4 font-semibold">الإجراء</th>
+                                </tr>
+                            </thead>
+                            <tbody id="vpn-clients-body" class="divide-y divide-slate-700/50 text-sm lg:text-base">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ========== User Management View ========== -->
+                <div id="view-users" class="fade-in hidden">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 lg:mb-6">
+                        <h2 class="text-xl lg:text-2xl font-bold neon-text-cyan">إدارة المستخدمين</h2>
+                        <button onclick="openAddUserModal()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 lg:px-6 py-2 lg:py-3 rounded-lg transition shadow-[0_0_15px_rgba(6,182,212,0.4)] flex items-center font-bold text-sm lg:text-base whitespace-nowrap">
+                            <i class="fa-solid fa-user-plus ml-2"></i> إضافة مستخدم جديد
+                        </button>
+                    </div>
+                    <div id="add-user-form" class="glass-panel rounded-xl p-4 lg:p-6 mb-6 hidden bg-slate-800/50 border-cyan-900">
+                        <h3 class="text-lg font-bold text-cyan-300 mb-4">إضافة مستخدم جديد</h3>
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-400 mb-2">اسم المستخدم</label>
+                                <input type="text" id="new-username" placeholder="مثال: ahmed_s" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:outline-none focus:border-cyan-400 transition text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-400 mb-2">كلمة المرور</label>
+                                <input type="password" id="new-password" placeholder="••••••••" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:outline-none focus:border-cyan-400 transition text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-400 mb-2">الصلاحية (Role)</label>
+                                <select id="new-user-role" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:outline-none focus:border-cyan-400 transition text-sm">
+                                    <option value="admin">مدير نظام (System Admin)</option>
+                                    <option value="monitor">مراقب (Monitor)</option>
+                                    <option value="operator">مشغل (Operator)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flex gap-3 mt-4 justify-end">
+                            <button onclick="closeAddUserModal()" class="bg-slate-700 hover:bg-slate-600 text-white px-5 py-2 rounded-lg transition text-sm">إلغاء</button>
+                            <button onclick="addUser()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-2 rounded-lg transition font-bold shadow-[0_0_15px_rgba(6,182,212,0.4)] text-sm flex items-center gap-2">
+                                <i class="fa-solid fa-user-check"></i> إضافة المستخدم
+                            </button>
+                        </div>
+                    </div>
+                    <div class="glass-panel rounded-xl overflow-hidden table-responsive-wrapper">
+                        <table class="w-full text-right border-collapse" style="min-width: 650px;">
+                            <thead>
+                                <tr class="bg-slate-800/80 border-b border-slate-700 text-slate-300 text-xs lg:text-sm">
+                                    <th class="p-3 lg:p-4 font-semibold">المعرف</th>
+                                    <th class="p-3 lg:p-4 font-semibold">اسم المستخدم</th>
+                                    <th class="p-3 lg:p-4 font-semibold">الصلاحية</th>
+                                    <th class="p-3 lg:p-4 font-semibold">آخر دخول</th>
+                                    <th class="p-3 lg:p-4 font-semibold">الحالة</th>
+                                    <th class="p-3 lg:p-4 font-semibold">الإجراء</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-table-body" class="divide-y divide-slate-700/50 text-sm lg:text-base">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ========== Logs View ========== -->
+                <div id="view-logs" class="fade-in hidden h-full flex flex-col pb-6 lg:pb-10">
+                    <h2 class="text-xl lg:text-2xl font-bold mb-4 lg:mb-6 neon-text-cyan">سجلات النظام الاحترافية</h2>
+                    <div class="logs-controls flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 lg:mb-6 bg-slate-800/30 p-3 lg:p-4 rounded-xl border border-slate-700/50">
+                        <div class="flex flex-wrap items-center gap-2 lg:gap-3 w-full sm:w-auto">
+                            <div class="flex items-center gap-2">
+                                <span class="text-slate-400 text-sm">المستوى:</span>
+                                <select id="log-level-filter" class="filter-select" onchange="applyLogFilters()">
+                                    <option value="all">الكل</option>
+                                    <option value="info">Info</option>
+                                    <option value="warning">Warning</option>
+                                    <option value="error">Error</option>
+                                    <option value="critical">Critical</option>
+                                </select>
+                            </div>
+                            <div class="search-wrapper">
+                                <i class="fa-solid fa-search"></i>
+                                <input type="text" id="log-search-input" class="search-input" placeholder="بحث في السجلات..." oninput="applyLogFilters()">
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 w-full sm:w-auto">
+                            <button onclick="exportLogsCSV()" class="export-btn"><i class="fa-solid fa-file-csv"></i> تصدير CSV</button>
+                            <button onclick="refreshLogs()" class="export-btn" title="تحديث السجلات"><i class="fa-solid fa-rotate"></i></button>
+                        </div>
+                    </div>
+                    <div class="glass-panel rounded-xl overflow-hidden table-responsive-wrapper flex-1">
+                        <table class="w-full text-right border-collapse" style="min-width: 700px;">
+                            <thead>
+                                <tr class="bg-slate-800/80 border-b border-slate-700 text-slate-300 text-xs lg:text-sm">
+                                    <th class="p-3 lg:p-4 font-semibold" style="width: 15%;">التاريخ</th>
+                                    <th class="p-3 lg:p-4 font-semibold" style="width: 12%;">المستوى</th>
+                                    <th class="p-3 lg:p-4 font-semibold" style="width: 18%;">المصدر</th>
+                                    <th class="p-3 lg:p-4 font-semibold" style="width: 55%;">الرسالة</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logs-table-body" class="divide-y divide-slate-700/50 text-sm lg:text-base">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ========== Settings View (Notifications) ========== -->
+                <div id="view-settings" class="fade-in hidden">
+                    <h2 class="text-xl lg:text-2xl font-bold mb-4 lg:mb-6 neon-text-cyan">إعدادات الإشعارات</h2>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+                        <div class="settings-group">
+                            <div class="flex items-center gap-3 mb-4">
+                                <i class="fa-brands fa-telegram text-2xl text-cyan-400"></i>
+                                <h3 class="text-lg font-bold text-cyan-300">Telegram</h3>
+                            </div>
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-300 mb-1">Bot Token</label>
+                                    <input type="text" id="tg-token" placeholder="123456:ABC-DEF..." class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-cyan-400 transition text-sm">
+                                    <p class="helper-text">أدخل توكن البوت الذي حصلت عليه من @BotFather</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-300 mb-1">Chat ID</label>
+                                    <input type="text" id="tg-chatid" placeholder="123456789" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-cyan-400 transition text-sm">
+                                    <p class="helper-text">معرف الدردشة أو المجموعة المستهدفة</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="settings-group">
+                            <div class="flex items-center gap-3 mb-4">
+                                <i class="fa-solid fa-envelope text-2xl text-purple-400"></i>
+                                <h3 class="text-lg font-bold text-purple-300">البريد الإلكتروني</h3>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-1">البريد الإلكتروني</label>
+                                <input type="email" id="notif-email" placeholder="admin@example.com" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-cyan-400 transition text-sm">
+                                <p class="helper-text">سيتم إرسال التنبيهات إلى هذا البريد</p>
+                            </div>
+                        </div>
+                        <div class="settings-group lg:col-span-2">
+                            <div class="flex items-center gap-3 mb-4">
+                                <i class="fa-solid fa-bell text-2xl text-yellow-400"></i>
+                                <h3 class="text-lg font-bold text-yellow-300">أحداث التنبيه</h3>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                <label class="flex items-center gap-3 text-slate-200 cursor-pointer hover:text-cyan-300 transition p-2 rounded-lg bg-slate-800/30">
+                                    <input type="checkbox" class="settings-checkbox" data-event="device_connect" checked>
+                                    <span>اتصال جهاز جديد</span>
+                                </label>
+                                <label class="flex items-center gap-3 text-slate-200 cursor-pointer hover:text-cyan-300 transition p-2 rounded-lg bg-slate-800/30">
+                                    <input type="checkbox" class="settings-checkbox" data-event="network_scan" checked>
+                                    <span>اكتشاف فحص شبكة</span>
+                                </label>
+                                <label class="flex items-center gap-3 text-slate-200 cursor-pointer hover:text-cyan-300 transition p-2 rounded-lg bg-slate-800/30">
+                                    <input type="checkbox" class="settings-checkbox" data-event="intrusion" checked>
+                                    <span>محاولة اختراق</span>
+                                </label>
+                                <label class="flex items-center gap-3 text-slate-200 cursor-pointer hover:text-cyan-300 transition p-2 rounded-lg bg-slate-800/30">
+                                    <input type="checkbox" class="settings-checkbox" data-event="reboot" checked>
+                                    <span>إعادة تشغيل النظام</span>
+                                </label>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-3">اختر الأحداث التي ترغب في تلقي إشعارات عنها عبر القنوات المحددة أعلاه.</p>
+                        </div>
+                        <div class="lg:col-span-2 flex justify-end">
+                            <button onclick="saveNotificationSettings()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-8 py-3 rounded-lg transition font-bold shadow-[0_0_20px_rgba(6,182,212,0.4)] flex items-center gap-2">
+                                <i class="fa-solid fa-floppy-disk"></i> حفظ الإعدادات
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ========== Reports View ========== -->
+                <div id="view-reports" class="fade-in hidden">
+                    <h2 class="text-xl lg:text-2xl font-bold mb-4 lg:mb-6 neon-text-cyan">نظام التقارير الأمنية</h2>
+                    <div class="reports-actions flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 lg:mb-6 bg-slate-800/30 p-3 lg:p-4 rounded-xl border border-slate-700/50">
+                        <span class="text-slate-400 text-sm font-medium">إنشاء تقرير جديد:</span>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button onclick="generateReport('pdf')" class="report-gen-btn pdf"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                            <button onclick="generateReport('excel')" class="report-gen-btn excel"><i class="fa-solid fa-file-excel"></i> Excel</button>
+                            <button onclick="generateReport('csv')" class="report-gen-btn csv"><i class="fa-solid fa-file-csv"></i> CSV</button>
+                        </div>
+                    </div>
+                    <div class="glass-panel rounded-xl overflow-hidden table-responsive-wrapper">
+                        <table class="w-full text-right border-collapse" style="min-width: 550px;">
+                            <thead>
+                                <tr class="bg-slate-800/80 border-b border-slate-700 text-slate-300 text-xs lg:text-sm">
+                                    <th class="p-3 lg:p-4 font-semibold">التاريخ</th>
+                                    <th class="p-3 lg:p-4 font-semibold">النوع</th>
+                                    <th class="p-3 lg:p-4 font-semibold">الحجم</th>
+                                    <th class="p-3 lg:p-4 font-semibold">الحالة</th>
+                                    <th class="p-3 lg:p-4 font-semibold">الإجراء</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reports-table-body" class="divide-y divide-slate-700/50 text-sm lg:text-base">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    <!-- END appContainer -->
+
+    <!-- ==================== TOAST CONTAINER ==================== -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ================================================================
+        // ==================== GLOBAL STATE ===============================
+        // ================================================================
+        let currentView = 'desktop';
+        let sidebarOpen = false;
+
+        // Logs data
+        let logsData = [];
+        let logIdCounter = 1;
+
+        // Reports data
+        let reportsData = [];
+        let reportIdCounter = 1;
+
+        // Firewall rules
+        let ruleCounter = 1;
+
+        // Users data
+        let usersData = [];
+        let userIdCounter = 1;
+
+        // IDS/IPS state
+        let idsMode = 'detection';
+        let idsAlertsData = [];
+
+        // VPN clients data
+        let vpnClientsData = [];
+
+        // Chart instance
+        let trafficChart = null;
+        let trafficData = Array.from({ length: 20 }, () => Math.floor(Math.random() * 100));
+        let labels = Array.from({ length: 20 }, (_, i) => i + 's');
+
+        // ================================================================
+        // ==================== SIDEBAR LANGUAGE SYSTEM (NEW) ==============
+        // ================================================================
+        let sidebarLanguage = 'ar'; // 'ar' or 'en'
+
+        // Translation map for sidebar tabs
+        const sidebarTranslations = {
+            dashboard: { ar: 'لوحة التحكم', en: 'Dashboard' },
+            devices: { ar: 'الأجهزة المتصلة', en: 'Connected Devices' },
+            firewall: { ar: 'الجدار الناري', en: 'Firewall' },
+            idsips: { ar: 'إعدادات IDS/IPS', en: 'IDS/IPS Settings' },
+            network: { ar: 'الشبكة', en: 'Network' },
+            vpn: { ar: 'إعدادات VPN', en: 'VPN Settings' },
+            logs: { ar: 'السجلات', en: 'Logs' },
+            users: { ar: 'إدارة المستخدمين', en: 'User Management' },
+            settings: { ar: 'الإشعارات', en: 'Notifications' },
+            reports: { ar: 'التقارير', en: 'Reports' }
+        };
+
+        function applySidebarLanguage(lang) {
+            sidebarLanguage = lang;
+            const texts = document.querySelectorAll('.sidebar-tab-text');
+            texts.forEach(el => {
+                const key = el.getAttribute('data-key');
+                if (key && sidebarTranslations[key]) {
+                    el.textContent = sidebarTranslations[key][lang];
+                }
+            });
+            // Update the toggle button text
+            const indicator = document.getElementById('lang-indicator');
+            if (indicator) {
+                indicator.textContent = lang === 'ar' ? 'English' : 'العربية';
+            }
+            // Update sidebar direction
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) {
+                sidebar.style.direction = lang === 'ar' ? 'rtl' : 'ltr';
+            }
+            // Store preference
+            localStorage.setItem('sentinel-sidebar-lang', lang);
+        }
+
+        function toggleSidebarLanguage() {
+            const newLang = sidebarLanguage === 'ar' ? 'en' : 'ar';
+            applySidebarLanguage(newLang);
+            // Silent switch
+        }
+
+        // Load saved language preference
+        function loadSidebarLanguage() {
+            const saved = localStorage.getItem('sentinel-sidebar-lang');
+            if (saved === 'en' || saved === 'ar') {
+                applySidebarLanguage(saved);
+            } else {
+                applySidebarLanguage('ar');
+            }
+        }
+
+        // ================================================================
+        // ==================== LOGIN FUNCTION =============================
+        // ================================================================
+        function doLogin() {
+            const user = document.getElementById('loginUser').value.trim();
+            const pass = document.getElementById('loginPass').value.trim();
+            if (user && pass) {
+                document.getElementById('loginScreen').classList.add('hidden');
+                const appContainer = document.getElementById('appContainer');
+                appContainer.style.display = 'flex';
+                init();
+                showToast('✅ مرحباً بك يا مدير النظام - Sentinel Shield OS جاهز.', 'success');
+            } else {
+                showToast('⚠ يرجى إدخال اسم المستخدم وكلمة المرور.', 'error');
+            }
+        }
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !document.getElementById('loginScreen').classList.contains('hidden')) {
+                doLogin();
+            }
+        });
+
+        // ================================================================
+        // ==================== INIT =======================================
+        // ================================================================
+        function init() {
+            loadSidebarLanguage(); // NEW: Load sidebar language
+            generateSampleLogs();
+            generateSampleReports();
+            generateSampleUsers();
+            generateSampleIDSAlerts();
+            generateSampleVPNClients();
+            renderLogs();
+            renderReports();
+            renderUsers();
+            renderIDSAlerts();
+            renderVPNClients();
+            loadNotificationSettings();
+            updateTime();
+            setInterval(updateTime, 1000);
+            initViewMode();
+            initChart();
+            startBackgroundLogs();
+            startDashboardStats();
+            startTrafficUpdater();
+            addLogEntry('info', 'System', 'Sentinel Shield OS v2.1.0 initialized successfully.');
+            addLogEntry('info', 'UI', 'وضع العرض الحالي: ' + (currentView === 'mobile' ? 'Mobile (هاتف)' :
+                'Desktop (حاسوب)'));
+            addLogEntry('info', 'System', 'تم تحميل وحدات: الإشعارات، السجلات، التقارير، IDS/IPS، VPN، المستخدمين، الشبكة.');
+            renderFirewallRules();
+        }
+
+        // ================================================================
+        // ==================== VIEW MODE ==================================
+        // ================================================================
+        function initViewMode() {
+            const savedView = localStorage.getItem('sentinel-view-mode');
+            if (savedView && (savedView === 'mobile' || savedView === 'desktop')) {
+                applyViewMode(savedView);
+                return;
+            }
+            if (window.innerWidth < 768) {
+                applyViewMode('mobile');
+            } else {
+                applyViewMode('desktop');
+            }
+        }
+
+        function applyViewMode(mode) {
+            currentView = mode;
+            const body = document.getElementById('app-body');
+            body.classList.remove('view-desktop', 'view-mobile');
+            body.classList.add('view-' + mode);
+            const btnDesktop = document.getElementById('btn-desktop-view');
+            const btnMobile = document.getElementById('btn-mobile-view');
+            btnDesktop.classList.remove('active-view');
+            btnMobile.classList.remove('active-view');
+            if (mode === 'desktop') {
+                btnDesktop.classList.add('active-view');
+            } else {
+                btnMobile.classList.add('active-view');
+            }
+            // Close sidebar when switching view mode
+            closeSidebar();
+            localStorage.setItem('sentinel-view-mode', mode);
+            if (trafficChart) {
+                setTimeout(() => trafficChart.resize(), 350);
+            }
+        }
+
+        function setViewMode(mode) {
+            if (currentView === mode) return;
+            applyViewMode(mode);
+            const btn = mode === 'mobile' ? document.getElementById('btn-mobile-view') : document.getElementById(
+                'btn-desktop-view');
+            btn.style.transform = 'scale(0.9)';
+            setTimeout(() => btn.style.transform = '', 150);
+           // showToast('تم التبديل إلى وضع ' + (mode === 'mobile' ? 'الهاتف' : 'الحاسوب'), 'info');
+        }
+
+        function isMobileView() {
+            return currentView === 'mobile';
+        }
+
+        // ================================================================
+        // ==================== SIDEBAR (OVERLAY) ==========================
+        // ================================================================
+        function toggleSidebar() {
+            if (sidebarOpen) {
+                closeSidebar();
+            } else {
+                openSidebar();
+            }
+        }
+
+        function openSidebar() {
+            sidebarOpen = true;
+            document.getElementById('sidebar').classList.add('sidebar-open');
+            document.getElementById('sidebar-overlay').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeSidebar() {
+            sidebarOpen = false;
+            document.getElementById('sidebar').classList.remove('sidebar-open');
+            document.getElementById('sidebar-overlay').classList.remove('show');
+            document.body.style.overflow = 'hidden'; // Keep body non-scrollable as per original design
+        }
+
+        // ================================================================
+        // ==================== SYSTEM CLOCK ===============================
+        // ================================================================
+        function updateTime() {
+            const now = new Date();
+            const el = document.getElementById('system-time');
+            if (el) el.innerText = now.toLocaleTimeString('en-US', { hour12: false });
+        }
+
+        // ================================================================
+        // ==================== TAB SWITCHING ==============================
+        // ================================================================
+        const allViews = ['dashboard', 'devices', 'firewall', 'idsips', 'network', 'vpn', 'logs', 'users', 'settings',
+            'reports'
+        ];
+
+        function switchTab(target) {
+            allViews.forEach(view => {
+                const viewEl = document.getElementById('view-' + view);
+                const tabEl = document.getElementById('tab-' + view);
+                if (viewEl) viewEl.classList.add('hidden');
+                if (tabEl) {
+                    tabEl.classList.remove('active');
+                    tabEl.style.borderRight = '';
+                    tabEl.style.backgroundColor = '';
+                    tabEl.style.color = '';
+                }
+            });
+            const targetView = document.getElementById('view-' + target);
+            if (targetView) {
+                targetView.classList.remove('hidden');
+                targetView.classList.remove('fade-in');
+                void targetView.offsetWidth;
+                targetView.classList.add('fade-in');
+            }
+            const activeTab = document.getElementById('tab-' + target);
+            if (activeTab) {
+                activeTab.classList.add('active');
+                activeTab.style.borderRight = '4px solid #06b6d4';
+                activeTab.style.backgroundColor = '#1e293b';
+                activeTab.style.color = '#22d3ee';
+            }
+            if (target === 'dashboard' && trafficChart) {
+                setTimeout(() => trafficChart.resize(), 300);
+            }
+            if (target === 'logs') {
+                renderLogs();
+            }
+            if (target === 'reports') {
+                renderReports();
+            }
+            if (target === 'users') {
+                renderUsers();
+            }
+            if (target === 'idsips') {
+                renderIDSAlerts();
+            }
+            if (target === 'vpn') {
+                renderVPNClients();
+            }
+            const container = document.getElementById('main-view-container');
+            if (container) container.scrollTop = 0;
+        }
+
+        // ================================================================
+        // ==================== CHART ======================================
+        // ================================================================
+        function initChart() {
+            const ctx = document.getElementById('trafficChart')?.getContext('2d');
+            if (!ctx) return;
+            trafficChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'معدل نقل البيانات (Mbps)',
+                        data: trafficData,
+                        borderColor: '#06b6d4',
+                        backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            grid: { color: 'rgba(51, 65, 85, 0.5)' },
+                            ticks: { color: '#94a3b8', font: { size: 10 } }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { display: false }
+                        }
+                    },
+                    plugins: { legend: { display: false } },
+                    animation: { duration: 0 }
+                }
+            });
+        }
+
+        // ================================================================
+        // ==================== DASHBOARD STATS ============================
+        // ================================================================
+        function startDashboardStats() {
+            setInterval(() => {
+                const dashView = document.getElementById('view-dashboard');
+                if (dashView && !dashView.classList.contains('hidden')) {
+                    let cpu = Math.floor(Math.random() * 20) + 5;
+                    let ram = Math.floor(Math.random() * 10) + 40;
+                    const cpuStat = document.getElementById('cpu-stat');
+                    const cpuBar = document.getElementById('cpu-bar');
+                    const ramStat = document.getElementById('ram-stat');
+                    const ramBar = document.getElementById('ram-bar');
+                    if (cpuStat) cpuStat.innerText = cpu + '%';
+                    if (cpuBar) cpuBar.style.width = cpu + '%';
+                    if (ramStat) ramStat.innerText = ram + '%';
+                    if (ramBar) ramBar.style.width = ram + '%';
+                }
+            }, 3000);
+        }
+
+        function startTrafficUpdater() {
+            setInterval(() => {
+                const dashView = document.getElementById('view-dashboard');
+                if (dashView && !dashView.classList.contains('hidden') && trafficChart) {
+                    let newValue = Math.floor(Math.random() * 100);
+                    if (Math.random() > 0.9) newValue = Math.floor(Math.random() * 400) + 200;
+                    trafficData.push(newValue);
+                    trafficData.shift();
+                    trafficChart.update();
+                }
+            }, 1500);
+        }
+
+        // ================================================================
+        // ==================== LOGS SYSTEM ================================
+        // ================================================================
+        function generateSampleLogs() {
+            const samples = [
+                { level: 'info', source: 'System', msg: 'خدمة SSH قيد التشغيل على المنفذ 22' },
+                { level: 'warning', source: 'Network', msg: 'تم اكتشاف محاولة اتصال غير مصرح بها من 10.0.0.45' },
+                { level: 'error', source: 'Firewall', msg: 'فشل تطبيق القاعدة على 192.168.1.100: خطأ في البنية' },
+                { level: 'critical', source: 'IDS', msg: 'هجوم محتمل من نوع SQL Injection على خادم الويب!' },
+                { level: 'info', source: 'Kernel', msg: 'تم تحميل وحدة nf_conntrack' },
+                { level: 'warning', source: 'System', msg: 'استخدام القرص تجاوز 85% على /dev/sda1' },
+                { level: 'error', source: 'Network', msg: 'انقطاع الاتصال بـ Gateway 192.168.1.1' },
+                { level: 'critical', source: 'Security', msg: 'تغيير غير مصرح به في ملف /etc/passwd' },
+                { level: 'info', source: 'System', msg: 'تم تحديث قاعدة بيانات الطرود بنجاح' },
+                { level: 'warning', source: 'Network', msg: 'حركة مرور مشبوهة على المنفذ 4444' },
+                { level: 'error', source: 'Service', msg: 'فشل بدء خدمة Apache: المنفذ 80 مشغول' },
+                { level: 'critical', source: 'Kernel', msg: 'تحذير: تعطل نواة محتمل بسبب تجاوز الذاكرة' },
+                { level: 'info', source: 'System', msg: 'تم إنشاء تقرير أمني يومي' },
+                { level: 'warning', source: 'Firewall', msg: 'تم حظر 15 عنوان IP خلال آخر ساعة' },
+                { level: 'error', source: 'Database', msg: 'فشل الاتصال بقاعدة البيانات: timeout' },
+            ];
+            samples.forEach(s => {
+                addLogEntry(s.level, s.source, s.msg);
+            });
+            const now = new Date();
+            for (let i = 0; i < 5; i++) {
+                const d = new Date(now);
+                d.setMinutes(d.getMinutes() - (i * 3 + 2));
+                const entry = {
+                    id: logIdCounter++,
+                    timestamp: d.toISOString(),
+                    level: ['info', 'warning', 'error', 'critical'][Math.floor(Math.random() * 4)],
+                    source: ['System', 'Network', 'Firewall', 'IDS', 'Kernel'][Math.floor(Math.random() * 5)],
+                    message: 'سجل نموذجي #' + i + ' تم إنشاؤه في وقت سابق.'
+                };
+                logsData.push(entry);
+            }
+            logsData.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        }
+
+        function addLogEntry(level, source, message) {
+            const entry = {
+                id: logIdCounter++,
+                timestamp: new Date().toISOString(),
+                level: level,
+                source: source,
+                message: message
+            };
+            logsData.unshift(entry);
+            if (logsData.length > 500) logsData.pop();
+            const logsView = document.getElementById('view-logs');
+            if (logsView && !logsView.classList.contains('hidden')) {
+                renderLogs();
+            }
+            const terminal = document.getElementById('terminal-output');
+            if (terminal) {
+                const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+                const levelMap = {
+                    info: 'ℹ️',
+                    warning: '⚠️',
+                    error: '❌',
+                    critical: '🔥'
+                };
+                terminal.innerHTML +=
+                    `<div><span class="text-slate-500">[${time}]</span> [${level.toUpperCase()}] ${message}</div>`;
+                terminal.scrollTop = terminal.scrollHeight;
+            }
+        }
+
+        function getLogsForDisplay() {
+            const levelFilter = document.getElementById('log-level-filter')?.value || 'all';
+            const searchTerm = document.getElementById('log-search-input')?.value?.trim()?.toLowerCase() || '';
+
+            let filtered = [...logsData];
+
+            if (levelFilter !== 'all') {
+                filtered = filtered.filter(log => log.level === levelFilter);
+            }
+
+            if (searchTerm) {
+                filtered = filtered.filter(log =>
+                    log.message.toLowerCase().includes(searchTerm) ||
+                    log.source.toLowerCase().includes(searchTerm) ||
+                    log.level.toLowerCase().includes(searchTerm)
+                );
+            }
+
+            return filtered;
+        }
+
+        function renderLogs() {
+            const tbody = document.getElementById('logs-table-body');
+            if (!tbody) return;
+
+            const filtered = getLogsForDisplay();
+            const displayLogs = filtered.slice(0, 100);
+
+            if (displayLogs.length === 0) {
+                tbody.innerHTML =
+                    `<tr><td colspan="4" class="p-6 lg:p-8 text-center text-slate-400">لا توجد سجلات تطابق معايير البحث.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            displayLogs.forEach(log => {
+                const date = new Date(log.timestamp);
+                const dateStr = date.toLocaleDateString('ar-EG') + ' ' + date.toLocaleTimeString('ar-EG', { hour12: false });
+                const levelClass = log.level;
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-800/30 transition border-b border-slate-700/40 text-sm lg:text-base">
+                        <td class="p-3 lg:p-4 text-slate-400 text-xs lg:text-sm font-mono">${dateStr}</td>
+                        <td class="p-3 lg:p-4"><span class="log-level ${levelClass}">${levelClass.toUpperCase()}</span></td>
+                        <td class="p-3 lg:p-4 text-cyan-200 font-medium text-xs lg:text-sm">${log.source}</td>
+                        <td class="p-3 lg:p-4 text-slate-200 text-sm lg:text-base">${log.message}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function applyLogFilters() {
+            renderLogs();
+        }
+
+        function refreshLogs() {
+            showToast('تم تحديث السجلات', 'success');
+            renderLogs();
+        }
+
+        function exportLogsCSV() {
+            const filtered = getLogsForDisplay();
+            if (filtered.length === 0) {
+                showToast('لا توجد سجلات للتصدير', 'error');
+                return;
+            }
+
+            let csv = 'التاريخ,المستوى,المصدر,الرسالة\n';
+            filtered.forEach(log => {
+                const date = new Date(log.timestamp);
+                const dateStr = date.toLocaleString('ar-EG');
+                const msg = log.message.replace(/,/g, ';');
+                csv += `"${dateStr}","${log.level.toUpperCase()}","${log.source}","${msg}"\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'logs_export_' + new Date().toISOString().slice(0, 10) + '.csv';
+            link.click();
+            URL.revokeObjectURL(link.href);
+
+            showToast('تم تصدير ' + filtered.length + ' سجل بصيغة CSV', 'success');
+            addLogEntry('info', 'System', 'تم تصدير السجلات إلى CSV بواسطة المستخدم.');
+        }
+
+        function startBackgroundLogs() {
+            setInterval(() => {
+                const msgs = [
+                    { level: 'info', source: 'Kernel', msg: 'تم تحديث جدول التوجيه (Routing Table)' },
+                    { level: 'warning', source: 'Network', msg: 'تم اكتشاف حزمة مشبوهة من 192.168.1.67' },
+                    { level: 'error', source: 'Firewall', msg: 'رفض اتصال على المنفذ 8080 من 10.0.0.12' },
+                    { level: 'critical', source: 'IDS', msg: 'تطابق قاعدة الهجوم: CVE-2024-1234' },
+                    { level: 'info', source: 'System', msg: 'تم إعادة تحميل تكوين Suricata' },
+                    { level: 'warning', source: 'Security', msg: 'محاولة تسجيل دخول فاشلة من 203.0.113.45' },
+                    { level: 'error', source: 'Database', msg: 'تجاوز وقت الاتصال بقاعدة البيانات' },
+                    { level: 'critical', source: 'System', msg: 'تنبيه: تم اكتشاف هجوم DDoS محتمل!' },
+                    { level: 'info', source: 'Network', msg: 'تم تحديث ARP cache للبوابة الرئيسية' },
+                    { level: 'warning', source: 'Firewall', msg: 'تم حظر 8 عناوين IP جديدة' },
+                ];
+                if (Math.random() > 0.6) {
+                    const idx = Math.floor(Math.random() * msgs.length);
+                    const m = msgs[idx];
+                    addLogEntry(m.level, m.source, m.msg);
+                }
+            }, 5000);
+        }
+
+        // ================================================================
+        // ==================== NETWORK SCANNER ============================
+        // ================================================================
+        const mockDevices = [
+            { ip: '192.168.1.1', mac: 'A4:2B:8C:11:XX:XX', host: 'Gateway-Router', vendor: 'Cisco Systems',
+                status: 'نشط', color: 'text-green-400' },
+            { ip: '192.168.1.15', mac: 'F8:FF:C2:55:XX:XX', host: 'Amr-Laptop', vendor: 'Apple Inc.', status: 'نشط',
+                color: 'text-green-400' },
+            { ip: '192.168.1.102', mac: '00:1A:2B:3C:XX:XX', host: 'Galaxy-Note20-Ultra', vendor: 'Samsung Electronics',
+                status: 'نشط', color: 'text-green-400' },
+            { ip: '192.168.1.200', mac: 'B8:27:EB:AA:XX:XX', host: 'Unknown-Device', vendor: 'Raspberry Pi',
+                status: 'مشبوه', color: 'text-yellow-400' }
+        ];
+
+        function scanNetwork() {
+            const tbody = document.getElementById('devices-table-body');
+            if (!tbody) return;
+            tbody.innerHTML =
+                '<tr><td colspan="6" class="p-6 lg:p-8 text-center text-cyan-400"><i class="fa-solid fa-spinner fa-spin ml-2"></i> جاري فحص الحزم الشبكية...</td></tr>';
+
+            setTimeout(() => {
+                tbody.innerHTML = '';
+                mockDevices.forEach(dev => {
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-800/50 transition border-b border-slate-700/50 text-sm lg:text-base">
+                            <td class="p-3 lg:p-4 font-mono text-cyan-200">${dev.ip}</td>
+                            <td class="p-3 lg:p-4 font-mono text-slate-400 text-xs lg:text-sm">${dev.mac}</td>
+                            <td class="p-3 lg:p-4 font-medium">${dev.host}</td>
+                            <td class="p-3 lg:p-4 text-slate-400 text-xs lg:text-sm">${dev.vendor}</td>
+                            <td class="p-3 lg:p-4 font-bold ${dev.color} text-sm lg:text-base">${dev.status}</td>
+                            <td class="p-3 lg:p-4">
+                                <button onclick="blockIP('${dev.ip}')" class="text-red-400 hover:text-red-300 bg-red-900/30 px-2 lg:px-3 py-1 rounded text-xs lg:text-sm transition border border-red-800 whitespace-nowrap">حظر</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                addLogEntry('info', 'Network', 'ARP scan completed. Found ' + mockDevices.length +
+                    ' devices on eth1.');
+                checkNotificationEvent('network_scan', 'تم اكتشاف ' + mockDevices.length + ' جهاز على الشبكة.');
+                showToast('تم العثور على ' + mockDevices.length + ' جهاز', 'success');
+            }, 2000);
+        }
+
+        // ================================================================
+        // ==================== FIREWALL ===================================
+        // ================================================================
+        function blockIP(ip) {
+            const fwIp = document.getElementById('fw-ip');
+            const fwAction = document.getElementById('fw-action');
+            if (fwIp) fwIp.value = ip;
+            if (fwAction) fwAction.value = "DROP";
+            switchTab('firewall');
+            if (fwIp) {
+                fwIp.classList.add('ring-2', 'ring-red-500');
+                setTimeout(() => fwIp.classList.remove('ring-2', 'ring-red-500'), 1200);
+            }
+            const container = document.getElementById('main-view-container');
+            if (container) container.scrollTop = 0;
+        }
+
+        function addFirewallRule() {
+            const ipInput = document.getElementById('fw-ip');
+            const actionInput = document.getElementById('fw-action');
+            const ip = ipInput?.value?.trim();
+            const action = actionInput?.value;
+
+            if (!ip) {
+                alert('الرجاء إدخال عنوان IP');
+                if (ipInput) ipInput.focus();
+                return;
+            }
+            const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+            if (!ipRegex.test(ip)) {
+                alert('يرجى إدخال عنوان IP صحيح (مثال: 192.168.1.50)');
+                if (ipInput) ipInput.focus();
+                return;
+            }
+
+            const tbody = document.getElementById('firewall-rules-body');
+            if (!tbody) return;
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+            const actionColor = action === 'DROP' ? 'text-red-400 bg-red-900/20' : (action === 'ACCEPT' ?
+                'text-green-400 bg-green-900/20' : 'text-yellow-400 bg-yellow-900/20');
+
+            const newRow = `
+                <tr class="hover:bg-slate-800/50 transition border-b border-slate-700/50 fade-in text-sm lg:text-base">
+                    <td class="p-3 lg:p-4 text-slate-400">#${ruleCounter++}</td>
+                    <td class="p-3 lg:p-4 font-mono text-slate-300">ALL (iptables)</td>
+                    <td class="p-3 lg:p-4 font-mono text-cyan-200">${ip}</td>
+                    <td class="p-3 lg:p-4 font-bold"><span class="px-2 lg:px-3 py-1 rounded border border-slate-700 ${actionColor} text-xs lg:text-sm">${action}</span></td>
+                    <td class="p-3 lg:p-4 text-slate-400 text-xs lg:text-sm">${time}</td>
+                </tr>
+            `;
+            tbody.insertAdjacentHTML('afterbegin', newRow);
+            if (ipInput) ipInput.value = '';
+
+            const threatsStat = document.getElementById('threats-stat');
+            if (threatsStat) {
+                let threats = parseInt(threatsStat.innerText.replace(/,/g, '')) + 1;
+                threatsStat.innerText = threats.toLocaleString();
+            }
+            addLogEntry('info', 'Firewall', 'Rule added: iptables -A INPUT -s ' + ip + ' -j ' + action);
+            showToast('تم تطبيق القاعدة على ' + ip, 'success');
+            checkNotificationEvent('intrusion', 'تم تطبيق قاعدة جدار ناري على ' + ip);
+        }
+
+        function renderFirewallRules() {
+            const tbody = document.getElementById('firewall-rules-body');
+            if (!tbody) return;
+            if (tbody.children.length === 0) {
+                tbody.innerHTML = `
+                    <tr class="border-b border-slate-700/50 text-sm lg:text-base">
+                        <td class="p-3 lg:p-4 text-slate-400">#1</td>
+                        <td class="p-3 lg:p-4 font-mono text-slate-300">ALL</td>
+                        <td class="p-3 lg:p-4 font-mono text-cyan-200">192.168.1.100</td>
+                        <td class="p-3 lg:p-4"><span class="px-2 lg:px-3 py-1 rounded border border-slate-700 text-red-400 bg-red-900/20 text-xs lg:text-sm">DROP</span></td>
+                        <td class="p-3 lg:p-4 text-slate-400 text-xs lg:text-sm">${new Date().toLocaleTimeString('en-US', {hour12:false})}</td>
+                    </tr>
+                    <tr class="border-b border-slate-700/50 text-sm lg:text-base">
+                        <td class="p-3 lg:p-4 text-slate-400">#2</td>
+                        <td class="p-3 lg:p-4 font-mono text-slate-300">ALL</td>
+                        <td class="p-3 lg:p-4 font-mono text-cyan-200">10.0.0.50</td>
+                        <td class="p-3 lg:p-4"><span class="px-2 lg:px-3 py-1 rounded border border-slate-700 text-green-400 bg-green-900/20 text-xs lg:text-sm">ACCEPT</span></td>
+                        <td class="p-3 lg:p-4 text-slate-400 text-xs lg:text-sm">${new Date().toLocaleTimeString('en-US', {hour12:false})}</td>
+                    </tr>
+                `;
+                ruleCounter = 3;
+            }
+        }
+
+        // ================================================================
+        // ==================== IDS/IPS SYSTEM =============================
+        // ================================================================
+        function generateSampleIDSAlerts() {
+            idsAlertsData = [
+                { time: '2026-07-16 10:32:15', type: 'warning', source: '192.168.1.105', msg: 'محاولة Port Scan على المنافذ 1-1024' },
+                { time: '2026-07-16 10:28:42', type: 'critical', source: '203.0.113.45', msg: 'تطابق قاعدة: SQL Injection - CVE-2024-5678' },
+                { time: '2026-07-16 10:15:09', type: 'warning', source: '10.0.0.50', msg: 'محاولة تسجيل دخول SSH فاشلة متكررة' },
+                { time: '2026-07-16 09:58:33', type: 'error', source: '192.168.1.67', msg: 'تم اكتشاف حزمة مشبوهة من نوع SYN Flood' },
+                { time: '2026-07-16 09:45:01', type: 'critical', source: '198.51.100.22', msg: 'هجوم DDoS محتمل: 5000+ طلب/ثانية' },
+            ];
+        }
+
+        function renderIDSAlerts() {
+            const tbody = document.getElementById('ids-alerts-body');
+            if (!tbody) return;
+            if (idsAlertsData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="p-6 lg:p-8 text-center text-slate-400">لا توجد تنبيهات حالياً.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = '';
+            idsAlertsData.forEach(alert => {
+                const levelClass = alert.type === 'critical' ? 'critical' : alert.type;
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-800/30 transition border-b border-slate-700/40 text-sm lg:text-base">
+                        <td class="p-3 lg:p-4 text-slate-400 text-xs lg:text-sm font-mono">${alert.time}</td>
+                        <td class="p-3 lg:p-4"><span class="log-level ${levelClass}">${alert.type.toUpperCase()}</span></td>
+                        <td class="p-3 lg:p-4 text-cyan-200 font-medium text-xs lg:text-sm">${alert.source}</td>
+                        <td class="p-3 lg:p-4 text-slate-200 text-sm lg:text-base">${alert.msg}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function toggleIDSMode() {
+            const toggle = document.getElementById('ids-mode-toggle');
+            const labelDetection = document.getElementById('mode-label-detection');
+            const labelPrevention = document.getElementById('mode-label-prevention');
+            const statusText = document.getElementById('ids-current-mode-text');
+
+            if (toggle.checked) {
+                idsMode = 'prevention';
+                labelDetection.classList.remove('detection');
+                labelPrevention.classList.add('prevention');
+                statusText.innerHTML = '<span class="text-red-400">Prevention - منع</span>';
+                addLogEntry('warning', 'IDS/IPS', 'تم تفعيل وضع المنع (Prevention) - سيتم حظر الهجمات تلقائياً.');
+                showToast('⚠ تم تفعيل وضع المنع - سيتم حظر الهجمات تلقائياً', 'warning');
+            } else {
+                idsMode = 'detection';
+                labelDetection.classList.add('detection');
+                labelPrevention.classList.remove('prevention');
+                statusText.innerHTML = '<span class="text-cyan-400">Detection - كشف فقط</span>';
+                addLogEntry('info', 'IDS/IPS', 'تم تفعيل وضع الكشف (Detection) - سيتم تسجيل الهجمات فقط.');
+                showToast('👁 تم تفعيل وضع الكشف فقط', 'info');
+            }
+        }
+
+        function updateIDSRules() {
+            showToast('⏳ جاري تحديث قواعد IDS/IPS من المستودع...', 'info');
+            addLogEntry('info', 'IDS/IPS', 'بدء تحديث قواعد IDS/IPS من Emerging Threats...');
+            setTimeout(() => {
+                addLogEntry('info', 'IDS/IPS', 'تم تحديث 1,247 قاعدة بنجاح. آخر تحديث: ' + new Date().toLocaleTimeString('ar-EG'));
+                showToast('✅ تم تحديث قواعد IDS/IPS بنجاح (1,247 قاعدة)', 'success');
+                idsAlertsData.unshift({
+                    time: new Date().toLocaleString('ar-EG'),
+                    type: 'info',
+                    source: 'System',
+                    msg: 'تم تحديث قواعد IDS - الإصدار 2026-07-16'
+                });
+                renderIDSAlerts();
+            }, 2000);
+        }
+
+        function reloadIDS() {
+            showToast('⏳ جاري إعادة تحميل خدمة Suricata...', 'info');
+            addLogEntry('info', 'IDS/IPS', 'إعادة تحميل خدمة Suricata...');
+            setTimeout(() => {
+                addLogEntry('info', 'IDS/IPS', 'تم إعادة تحميل خدمة Suricata بنجاح.');
+                showToast('✅ تم إعادة تحميل خدمة IDS/IPS بنجاح', 'success');
+            }, 1500);
+        }
+
+        function showIDSStats() {
+            showToast('📊 تم فتح لوحة الإحصائيات - يمكنك مراجعة Dashboard للتفاصيل', 'info');
+            switchTab('dashboard');
+        }
+
+        // ================================================================
+        // ==================== NETWORK SETTINGS ===========================
+        // ================================================================
+        function saveNetworkSettings() {
+            const wanType = document.getElementById('wan-type')?.value;
+            const wanIp = document.getElementById('wan-ip')?.value;
+            const lanIp = document.getElementById('lan-ip')?.value;
+            const dhcpEnabled = document.getElementById('dhcp-enabled')?.checked;
+            const dhcpStart = document.getElementById('dhcp-start')?.value;
+            const dhcpEnd = document.getElementById('dhcp-end')?.value;
+
+            addLogEntry('info', 'Network', 'تم حفظ إعدادات الشبكة: WAN=' + wanType + ', LAN=' + lanIp + ', DHCP=' + (dhcpEnabled ? 'مفعل' : 'معطل'));
+            showToast('✅ تم حفظ إعدادات الشبكة بنجاح', 'success');
+
+            if (dhcpEnabled) {
+                checkNotificationEvent('reboot', 'تم تحديث نطاق DHCP: ' + dhcpStart + ' - ' + dhcpEnd);
+            }
+        }
+
+        // ================================================================
+        // ==================== VPN SYSTEM =================================
+        // ================================================================
+        function generateSampleVPNClients() {
+            vpnClientsData = [
+                { user: 'ahmed_admin', ip: '10.8.0.2', connected: '2 ساعة و 15 دقيقة', data: '1.2 GB',
+                    status: 'متصل' },
+                { user: 'mona_user', ip: '10.8.0.3', connected: '45 دقيقة', data: '340 MB', status: 'متصل' },
+                { user: 'khalid_tech', ip: '10.8.0.4', connected: '5 ساعات', data: '2.8 GB', status: 'متصل' },
+            ];
+        }
+
+        function renderVPNClients() {
+            const tbody = document.getElementById('vpn-clients-body');
+            if (!tbody) return;
+            if (vpnClientsData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-6 lg:p-8 text-center text-slate-400">لا يوجد عملاء متصلون حالياً.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = '';
+            vpnClientsData.forEach(client => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-800/30 transition border-b border-slate-700/40 text-sm lg:text-base">
+                        <td class="p-3 lg:p-4 font-medium text-cyan-200">${client.user}</td>
+                        <td class="p-3 lg:p-4 font-mono text-slate-300">${client.ip}</td>
+                        <td class="p-3 lg:p-4 text-slate-400">${client.connected}</td>
+                        <td class="p-3 lg:p-4 text-slate-400">${client.data}</td>
+                        <td class="p-3 lg:p-4">
+                            <button onclick="disconnectVPNClient('${client.user}')" class="text-red-400 hover:text-red-300 bg-red-900/30 px-3 py-1 rounded text-xs transition border border-red-800">قطع</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function disconnectVPNClient(username) {
+            if (confirm('هل أنت متأكد من قطع اتصال ' + username + '؟')) {
+                vpnClientsData = vpnClientsData.filter(c => c.user !== username);
+                renderVPNClients();
+                addLogEntry('warning', 'VPN', 'تم قطع اتصال العميل: ' + username);
+                showToast('تم قطع اتصال ' + username, 'warning');
+            }
+        }
+
+        // ================================================================
+        // ==================== USER MANAGEMENT ============================
+        // ================================================================
+        function generateSampleUsers() {
+            usersData = [
+                { id: userIdCounter++, username: 'admin', role: 'admin', lastLogin: '2026-07-16 09:00',
+                    status: 'نشط' },
+                { id: userIdCounter++, username: 'mona_monitor', role: 'monitor', lastLogin: '2026-07-15 22:30',
+                    status: 'نشط' },
+                { id: userIdCounter++, username: 'khalid_op', role: 'operator', lastLogin: '2026-07-14 15:45',
+                    status: 'غير نشط' },
+                { id: userIdCounter++, username: 'sara_admin', role: 'admin', lastLogin: '2026-07-16 08:15',
+                    status: 'نشط' },
+            ];
+        }
+
+        function renderUsers() {
+            const tbody = document.getElementById('users-table-body');
+            if (!tbody) return;
+            if (usersData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-6 lg:p-8 text-center text-slate-400">لا يوجد مستخدمين. قم بإضافة مستخدم جديد.</td></tr>`;
+                return;
+            }
+            const roleMap = {
+                'admin': { label: 'مدير نظام', class: 'admin' },
+                'monitor': { label: 'مراقب', class: 'monitor' },
+                'operator': { label: 'مشغل', class: 'operator' }
+            };
+            tbody.innerHTML = '';
+            usersData.forEach(user => {
+                const role = roleMap[user.role] || { label: user.role, class: 'admin' };
+                const statusClass = user.status === 'نشط' ? 'text-green-400' : 'text-slate-500';
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-800/30 transition border-b border-slate-700/40 text-sm lg:text-base">
+                        <td class="p-3 lg:p-4 text-slate-400">#${user.id}</td>
+                        <td class="p-3 lg:p-4 font-medium text-cyan-200">${user.username}</td>
+                        <td class="p-3 lg:p-4"><span class="user-role-badge ${role.class}">${role.label}</span></td>
+                        <td class="p-3 lg:p-4 text-slate-400 text-xs">${user.lastLogin}</td>
+                        <td class="p-3 lg:p-4 font-bold ${statusClass}">${user.status}</td>
+                        <td class="p-3 lg:p-4">
+                            <button onclick="deleteUser(${user.id})" class="text-red-400 hover:text-red-300 bg-red-900/30 px-3 py-1 rounded text-xs transition border border-red-800">حذف</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function openAddUserModal() {
+            const form = document.getElementById('add-user-form');
+            if (form) {
+                form.classList.remove('hidden');
+                document.getElementById('new-username').focus();
+            }
+        }
+
+        function closeAddUserModal() {
+            const form = document.getElementById('add-user-form');
+            if (form) {
+                form.classList.add('hidden');
+                document.getElementById('new-username').value = '';
+                document.getElementById('new-password').value = '';
+            }
+        }
+
+        function addUser() {
+            const username = document.getElementById('new-username')?.value?.trim();
+            const password = document.getElementById('new-password')?.value?.trim();
+            const role = document.getElementById('new-user-role')?.value;
+
+            if (!username) {
+                showToast('⚠ يرجى إدخال اسم المستخدم', 'error');
+                return;
+            }
+            if (!password) {
+                showToast('⚠ يرجى إدخال كلمة المرور', 'error');
+                return;
+            }
+            if (usersData.some(u => u.username === username)) {
+                showToast('⚠ اسم المستخدم موجود مسبقاً', 'error');
+                return;
+            }
+
+            usersData.push({
+                id: userIdCounter++,
+                username: username,
+                role: role,
+                lastLogin: 'لم يسجل بعد',
+                status: 'نشط'
+            });
+
+            closeAddUserModal();
+            renderUsers();
+            addLogEntry('info', 'Users', 'تم إضافة مستخدم جديد: ' + username + ' (' + role + ')');
+            showToast('✅ تم إضافة المستخدم ' + username + ' بنجاح', 'success');
+        }
+
+        function deleteUser(id) {
+            const user = usersData.find(u => u.id === id);
+            if (!user) return;
+            if (user.username === 'admin') {
+                showToast('⚠ لا يمكن حذف حساب المدير الرئيسي', 'error');
+                return;
+            }
+            if (confirm('هل أنت متأكد من حذف المستخدم ' + user.username + '؟')) {
+                usersData = usersData.filter(u => u.id !== id);
+                renderUsers();
+                addLogEntry('warning', 'Users', 'تم حذف المستخدم: ' + user.username);
+                showToast('تم حذف المستخدم ' + user.username, 'warning');
+            }
+        }
+
+        // ================================================================
+        // ==================== NOTIFICATION SYSTEM ========================
+        // ================================================================
+        function loadNotificationSettings() {
+            try {
+                const saved = localStorage.getItem('sentinel-notif-settings');
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    if (data.tgToken) document.getElementById('tg-token').value = data.tgToken;
+                    if (data.tgChatId) document.getElementById('tg-chatid').value = data.tgChatId;
+                    if (data.email) document.getElementById('notif-email').value = data.email;
+                    if (data.events) {
+                        document.querySelectorAll('.settings-checkbox').forEach(cb => {
+                            const event = cb.getAttribute('data-event');
+                            if (data.events[event] !== undefined) {
+                                cb.checked = data.events[event];
+                            }
+                        });
+                    }
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        function saveNotificationSettings() {
+            const tgToken = document.getElementById('tg-token').value.trim();
+            const tgChatId = document.getElementById('tg-chatid').value.trim();
+            const email = document.getElementById('notif-email').value.trim();
+
+            const events = {};
+            document.querySelectorAll('.settings-checkbox').forEach(cb => {
+                const event = cb.getAttribute('data-event');
+                events[event] = cb.checked;
+            });
+
+            const data = { tgToken, tgChatId, email, events };
+            localStorage.setItem('sentinel-notif-settings', JSON.stringify(data));
+
+            addLogEntry('info', 'Settings', 'تم حفظ إعدادات الإشعارات بواسطة المستخدم.');
+            showToast('تم حفظ إعدادات الإشعارات بنجاح ✅', 'success');
+
+            if (tgToken && tgChatId) {
+                addLogEntry('info', 'Notifications', 'تم إرسال اختبار Telegram إلى Chat ID: ' + tgChatId);
+            }
+            if (email) {
+                addLogEntry('info', 'Notifications', 'تم إرسال اختبار بريد إلكتروني إلى: ' + email);
+            }
+        }
+
+        function checkNotificationEvent(eventType, message) {
+            try {
+                const saved = localStorage.getItem('sentinel-notif-settings');
+                if (!saved) return;
+                const data = JSON.parse(saved);
+                if (!data.events || !data.events[eventType]) return;
+
+                const tgToken = data.tgToken;
+                const tgChatId = data.tgChatId;
+                const email = data.email;
+
+                if (tgToken && tgChatId) {
+                    addLogEntry('info', 'Notifications', '📨 [Telegram] تم إرسال إشعار: ' + message);
+                }
+                if (email) {
+                    addLogEntry('info', 'Notifications', '📧 [Email] تم إرسال إشعار إلى ' + email + ': ' + message);
+                }
+                const eventNames = {
+                    'device_connect': '🖥️ جهاز جديد',
+                    'network_scan': '🔍 فحص شبكة',
+                    'intrusion': '🚨 اختراق',
+                    'reboot': '🔄 إعادة تشغيل'
+                };
+                showToast((eventNames[eventType] || '📢') + ': ' + message, 'info');
+            } catch (e) { /* ignore */ }
+        }
+
+        // ================================================================
+        // ==================== REPORTS SYSTEM =============================
+        // ================================================================
+        function generateSampleReports() {
+            const now = new Date();
+            const types = ['PDF', 'Excel', 'CSV'];
+            for (let i = 0; i < 4; i++) {
+                const d = new Date(now);
+                d.setHours(d.getHours() - (i * 2 + 1));
+                const size = (Math.random() * 2 + 0.2).toFixed(2);
+                reportsData.push({
+                    id: reportIdCounter++,
+                    timestamp: d.toISOString(),
+                    type: types[i % 3],
+                    size: size + ' MB',
+                    status: 'generated'
+                });
+            }
+            reportsData.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        }
+
+        function renderReports() {
+            const tbody = document.getElementById('reports-table-body');
+            if (!tbody) return;
+            if (reportsData.length === 0) {
+                tbody.innerHTML =
+                    `<tr><td colspan="5" class="p-6 lg:p-8 text-center text-slate-400">لا توجد تقارير سابقة. قم بإنشاء تقرير جديد.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = '';
+            reportsData.slice(0, 20).forEach(report => {
+                const date = new Date(report.timestamp);
+                const dateStr = date.toLocaleDateString('ar-EG') + ' ' + date.toLocaleTimeString('ar-EG', { hour12: false });
+                const iconMap = {
+                    'PDF': 'fa-file-pdf text-red-400',
+                    'Excel': 'fa-file-excel text-green-400',
+                    'CSV': 'fa-file-csv text-blue-400'
+                };
+                const icon = iconMap[report.type] || 'fa-file text-slate-400';
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-800/30 transition border-b border-slate-700/40 text-sm lg:text-base">
+                        <td class="p-3 lg:p-4 text-slate-400 text-xs lg:text-sm font-mono">${dateStr}</td>
+                        <td class="p-3 lg:p-4"><i class="fa-solid ${icon} ml-2"></i> ${report.type}</td>
+                        <td class="p-3 lg:p-4 text-slate-400">${report.size}</td>
+                        <td class="p-3 lg:p-4"><span class="report-status-badge generated">✓ مكتمل</span></td>
+                        <td class="p-3 lg:p-4">
+                            <button onclick="downloadReport('${report.id}')" class="text-cyan-400 hover:text-cyan-300 bg-cyan-900/30 px-3 py-1 rounded text-xs transition border border-cyan-800">تحميل</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function generateReport(type) {
+            const typeMap = { 'pdf': 'PDF', 'excel': 'Excel', 'csv': 'CSV' };
+            const typeName = typeMap[type] || type.toUpperCase();
+            showToast('⏳ جاري إنشاء تقرير ' + typeName + '...', 'info');
+            setTimeout(() => {
+                const size = (Math.random() * 3 + 0.5).toFixed(2);
+                const newReport = {
+                    id: reportIdCounter++,
+                    timestamp: new Date().toISOString(),
+                    type: typeName,
+                    size: size + ' MB',
+                    status: 'generated'
+                };
+                reportsData.unshift(newReport);
+                renderReports();
+                addLogEntry('info', 'Reports', 'تم إنشاء تقرير ' + typeName + ' بحجم ' + size + ' MB');
+                const ext = type === 'pdf' ? 'pdf' : type === 'excel' ? 'xlsx' : 'csv';
+                const filename = 'report_' + new Date().toISOString().slice(0, 10) + '.' + ext;
+                const blob = new Blob(['تقرير أمني تجريبي من Sentinel Shield OS\nالتاريخ: ' + new Date().toISOString()], { type: 'text/plain' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = filename;
+                link.click();
+                URL.revokeObjectURL(link.href);
+                showToast('✅ تم إنشاء تقرير ' + typeName + ' وتحميله', 'success');
+                checkNotificationEvent('reboot', 'تم إنشاء تقرير ' + typeName + ' جديد');
+                const logsView = document.getElementById('view-logs');
+                if (logsView && !logsView.classList.contains('hidden')) {
+                    renderLogs();
+                }
+            }, 1500);
+        }
+
+        function downloadReport(id) {
+            const report = reportsData.find(r => r.id == id);
+            if (!report) {
+                showToast('التقرير غير موجود', 'error');
+                return;
+            }
+            const ext = report.type === 'PDF' ? 'pdf' : report.type === 'Excel' ? 'xlsx' : 'csv';
+            const blob = new Blob(['تقرير ' + report.type + ' - ID: ' + report.id + '\nالتاريخ: ' + report.timestamp], { type: 'text/plain' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'report_' + report.id + '.' + ext;
+            link.click();
+            URL.revokeObjectURL(link.href);
+            showToast('جاري تحميل ' + report.type + ' ...', 'info');
+            addLogEntry('info', 'Reports', 'تم تحميل التقرير #' + report.id + ' (' + report.type + ')');
+        }
+
+        // ================================================================
+        // ==================== TOAST SYSTEM ===============================
+        // ================================================================
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            const toast = document.createElement('div');
+            toast.className = 'toast ' + type;
+            const iconMap = {
+                'info': 'fa-info-circle text-cyan-400',
+                'success': 'fa-check-circle text-green-400',
+                'error': 'fa-exclamation-circle text-red-400',
+                'warning': 'fa-triangle-exclamation text-yellow-400'
+            };
+            const icon = iconMap[type] || 'fa-info-circle text-cyan-400';
+            toast.innerHTML = `
+                <i class="fa-solid ${icon}"></i>
+                <span>${message}</span>
+                <button class="toast-close" onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark"></i></button>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateX(20px)';
+                    toast.style.transition = 'all 0.3s ease';
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, 5000);
+        }
+
+        // ================================================================
+        // ==================== KEYBOARD SHORTCUTS =========================
+        // ================================================================
+        document.addEventListener('keydown', function(e) {
+            if (!document.getElementById('loginScreen').classList.contains('hidden')) return;
+
+            if (e.ctrlKey && e.key >= '1' && e.key <= '0') {
+                e.preventDefault();
+                const tabs = ['dashboard', 'devices', 'firewall', 'idsips', 'network', 'vpn', 'logs', 'users', 'settings',
+                    'reports'
+                ];
+                let idx;
+                if (e.key === '0') idx = 9;
+                else idx = parseInt(e.key) - 1;
+                if (tabs[idx]) switchTab(tabs[idx]);
+            }
+            if (e.key === 'Escape' && sidebarOpen) {
+                closeSidebar();
+            }
+            if (e.ctrlKey && e.key === 'm') {
+                e.preventDefault();
+                setViewMode(currentView === 'mobile' ? 'desktop' : 'mobile');
+            }
+            if (e.ctrlKey && e.key === 'l') {
+                const logsView = document.getElementById('view-logs');
+                if (logsView && !logsView.classList.contains('hidden')) {
+                    e.preventDefault();
+                    const searchInput = document.getElementById('log-search-input');
+                    if (searchInput) {
+                        searchInput.focus();
+                        searchInput.select();
+                    }
+                }
+            }
+        });
+
+        // ================================================================
+        // ==================== RESIZE HANDLER =============================
+        // ================================================================
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                if (trafficChart) trafficChart.resize();
+            }, 250);
+        });
+
+        // ================================================================
+        // ==================== ENTER KEY FOR FIREWALL ====================
+        // ================================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            const fwIp = document.getElementById('fw-ip');
+            if (fwIp) {
+                fwIp.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addFirewallRule();
+                    }
+                });
+            }
+            const newPassword = document.getElementById('new-password');
+            if (newPassword) {
+                newPassword.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addUser();
+                    }
+                });
+            }
+        });
+
+        console.log('%c🛡️ Sentinel Shield OS %cv2.1.0 Ready',
+            'color: #22d3ee; font-size: 1.2em; font-weight: bold;',
+            'color: #94a3b8;');
+        console.log('%c🔐 New modules: IDS/IPS, Network, VPN, User Management, Sidebar Overlay, Language Toggle',
+            'color: #f8fafc;');
+        console.log('%c⌨️  Shortcuts: Ctrl+1-0 = tabs | Ctrl+M = toggle view | Ctrl+L = focus search | Esc = close sidebar',
+            'color: #64748b;');
+    </script>
+</body>
+</html>
